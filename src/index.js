@@ -1,15 +1,44 @@
+require('dotenv').config();
 const express = require('express');
 const path = require('path');
+const { createClient } = require('@supabase/supabase-js');
 
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 
-// Store swim times in memory (we'll add database later)
+// Supabase client
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_ANON_KEY
+);
+
+// Store swim times in memory (will move to DB next)
 let swimTimes = [];
 
 // Middleware
 app.use(express.static(path.join(__dirname, '../public')));
 app.use(express.json());
+
+// Health check endpoint
+app.get('/api/health', async (req, res) => {
+  try {
+    // Simple connection test using Supabase auth
+    const { data, error } = await supabase.auth.getSession();
+    
+    res.json({
+      status: 'ok',
+      database: 'connected',
+      supabaseUrl: process.env.SUPABASE_URL ? 'set' : 'missing',
+      timestamp: new Date().toISOString()
+    });
+  } catch (err) {
+    res.status(500).json({
+      status: 'error',
+      database: 'disconnected',
+      message: err.message
+    });
+  }
+});
 
 // API: Get all swim times
 app.get('/api/times', (req, res) => {
@@ -36,5 +65,6 @@ app.post('/api/times', (req, res) => {
 
 app.listen(PORT, () => {
   console.log('\n🏊 SwiftLapLogic is running!');
-  console.log(`Open your browser: http://localhost:${PORT}\n`);
+  console.log(`Open your browser: http://localhost:${PORT}`);
+  console.log(`Health check: http://localhost:${PORT}/api/health\n`);
 });

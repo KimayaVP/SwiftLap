@@ -17,6 +17,25 @@
     .header h1 { font-size: 1.8rem; margin-bottom: 8px; }
     .header p { color: #94a3b8; font-size: 0.9rem; }
     
+    .status-bar {
+      display: flex;
+      justify-content: center;
+      gap: 16px;
+      margin-bottom: 30px;
+      padding: 12px;
+      background: rgba(255,255,255,0.05);
+      border-radius: 10px;
+      font-size: 0.85rem;
+    }
+    .status-item { display: flex; align-items: center; gap: 6px; }
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #ef4444;
+    }
+    .status-dot.connected { background: #22c55e; }
+    
     .card {
       background: rgba(255,255,255,0.05);
       border-radius: 16px;
@@ -77,6 +96,17 @@
       <p>Track. Analyze. Improve.</p>
     </div>
 
+    <div class="status-bar">
+      <div class="status-item">
+        <div class="status-dot" id="serverDot"></div>
+        <span>Server</span>
+      </div>
+      <div class="status-item">
+        <div class="status-dot" id="dbDot"></div>
+        <span>Database</span>
+      </div>
+    </div>
+
     <div class="card">
       <h2>⏱️ Log Swim Time</h2>
       <form id="logForm">
@@ -123,6 +153,21 @@
   <script>
     const form = document.getElementById('logForm');
     const timesList = document.getElementById('timesList');
+
+    // Check health status
+    async function checkHealth() {
+      try {
+        const res = await fetch('/api/health');
+        const data = await res.json();
+        
+        document.getElementById('serverDot').classList.add('connected');
+        if (data.database === 'connected') {
+          document.getElementById('dbDot').classList.add('connected');
+        }
+      } catch (err) {
+        console.error('Health check failed:', err);
+      }
+    }
 
     // Load existing times
     async function loadTimes() {
@@ -172,6 +217,7 @@
       }
     });
 
+    checkHealth();
     loadTimes();
   </script>
 </body>
