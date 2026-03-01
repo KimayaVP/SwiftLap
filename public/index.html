@@ -12,53 +12,62 @@
       min-height: 100vh;
       color: white;
     }
-    .container {
-      max-width: 400px;
-      margin: 0 auto;
-      padding: 40px 20px;
+    .container { max-width: 400px; margin: 0 auto; padding: 40px 20px; }
+    .header { text-align: center; margin-bottom: 30px; }
+    .header h1 { font-size: 1.8rem; margin-bottom: 8px; }
+    .header p { color: #94a3b8; font-size: 0.9rem; }
+    
+    .card {
+      background: rgba(255,255,255,0.05);
+      border-radius: 16px;
+      padding: 24px;
+      margin-bottom: 20px;
     }
-    .header {
-      text-align: center;
-      margin-bottom: 40px;
-    }
-    .header h1 {
-      font-size: 2rem;
-      margin-bottom: 8px;
-    }
-    .header p {
-      color: #94a3b8;
-      font-size: 0.95rem;
-    }
-    .menu {
-      display: flex;
-      flex-direction: column;
-      gap: 16px;
-    }
-    .menu-btn {
-      background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
-      border: none;
-      padding: 20px;
-      border-radius: 12px;
+    .card h2 { font-size: 1.1rem; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+    
+    .form-group { margin-bottom: 16px; }
+    .form-group label { display: block; margin-bottom: 6px; color: #94a3b8; font-size: 0.85rem; }
+    .form-group select, .form-group input {
+      width: 100%;
+      padding: 12px;
+      border-radius: 8px;
+      border: 1px solid rgba(255,255,255,0.1);
+      background: rgba(255,255,255,0.05);
       color: white;
-      font-size: 1.1rem;
+      font-size: 1rem;
+    }
+    .time-inputs { display: flex; gap: 10px; }
+    .time-inputs input { text-align: center; }
+    
+    .btn {
+      width: 100%;
+      padding: 14px;
+      border-radius: 10px;
+      border: none;
+      font-size: 1rem;
       font-weight: 600;
       cursor: pointer;
+      transition: transform 0.2s;
+    }
+    .btn:hover { transform: translateY(-2px); }
+    .btn-primary { background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%); color: white; }
+    
+    .recent-times { margin-top: 10px; }
+    .time-entry {
       display: flex;
+      justify-content: space-between;
       align-items: center;
-      gap: 12px;
-      transition: transform 0.2s, box-shadow 0.2s;
+      padding: 12px;
+      background: rgba(255,255,255,0.03);
+      border-radius: 8px;
+      margin-bottom: 8px;
     }
-    .menu-btn:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 8px 25px rgba(14, 165, 233, 0.3);
-    }
-    .menu-btn .icon { font-size: 1.5rem; }
-    .footer {
-      text-align: center;
-      margin-top: 60px;
-      color: #64748b;
-      font-size: 0.85rem;
-    }
+    .time-entry .stroke { font-weight: 600; }
+    .time-entry .details { color: #94a3b8; font-size: 0.85rem; }
+    .time-entry .time { font-size: 1.2rem; font-weight: 700; color: #0ea5e9; }
+    
+    .empty-state { text-align: center; color: #64748b; padding: 20px; }
+    .footer { text-align: center; margin-top: 40px; color: #64748b; font-size: 0.85rem; }
   </style>
 </head>
 <body>
@@ -67,23 +76,103 @@
       <h1>🏊 SwiftLapLogic</h1>
       <p>Track. Analyze. Improve.</p>
     </div>
-    <div class="menu">
-      <button class="menu-btn" onclick="alert('Coming next!')">
-        <span class="icon">⏱️</span> Log Swim Time
-      </button>
-      <button class="menu-btn" onclick="alert('Coming next!')">
-        <span class="icon">📊</span> View Progress
-      </button>
-      <button class="menu-btn" onclick="alert('Coming next!')">
-        <span class="icon">🎯</span> Set Goals
-      </button>
-      <button class="menu-btn" onclick="alert('Coming next!')">
-        <span class="icon">🎥</span> Upload Video
-      </button>
+
+    <div class="card">
+      <h2>⏱️ Log Swim Time</h2>
+      <form id="logForm">
+        <div class="form-group">
+          <label>Stroke</label>
+          <select id="stroke" required>
+            <option value="Freestyle">Freestyle</option>
+            <option value="Backstroke">Backstroke</option>
+            <option value="Breaststroke">Breaststroke</option>
+            <option value="Butterfly">Butterfly</option>
+            <option value="IM">Individual Medley</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Distance (meters)</label>
+          <select id="distance" required>
+            <option value="50">50m</option>
+            <option value="100">100m</option>
+            <option value="200">200m</option>
+            <option value="400">400m</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Time</label>
+          <div class="time-inputs">
+            <input type="number" id="minutes" placeholder="Min" min="0" max="59" required>
+            <input type="number" id="seconds" placeholder="Sec" min="0" max="59" required>
+          </div>
+        </div>
+        <button type="submit" class="btn btn-primary">Log Time</button>
+      </form>
     </div>
-    <div class="footer">
-      Built by Kimaya 🏊‍♀️
+
+    <div class="card">
+      <h2>📊 Recent Times</h2>
+      <div id="timesList" class="recent-times">
+        <div class="empty-state">No times logged yet</div>
+      </div>
     </div>
+
+    <div class="footer">Built by Kimaya 🏊‍♀️</div>
   </div>
+
+  <script>
+    const form = document.getElementById('logForm');
+    const timesList = document.getElementById('timesList');
+
+    // Load existing times
+    async function loadTimes() {
+      const res = await fetch('/api/times');
+      const times = await res.json();
+      renderTimes(times);
+    }
+
+    // Render times list
+    function renderTimes(times) {
+      if (times.length === 0) {
+        timesList.innerHTML = '<div class="empty-state">No times logged yet</div>';
+        return;
+      }
+      timesList.innerHTML = times.map(t => `
+        <div class="time-entry">
+          <div>
+            <div class="stroke">${t.stroke}</div>
+            <div class="details">${t.distance}m • ${t.date}</div>
+          </div>
+          <div class="time">${t.time}</div>
+        </div>
+      `).join('');
+    }
+
+    // Submit form
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const data = {
+        stroke: document.getElementById('stroke').value,
+        distance: document.getElementById('distance').value,
+        minutes: document.getElementById('minutes').value,
+        seconds: document.getElementById('seconds').value
+      };
+
+      const res = await fetch('/api/times', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+
+      if (res.ok) {
+        document.getElementById('minutes').value = '';
+        document.getElementById('seconds').value = '';
+        loadTimes();
+      }
+    });
+
+    loadTimes();
+  </script>
 </body>
 </html>
