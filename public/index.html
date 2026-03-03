@@ -116,9 +116,6 @@
     .factor-icon { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; }
     .factor-icon.positive { background: rgba(34, 197, 94, 0.2); color: #22c55e; }
     .factor-icon.negative { background: rgba(239, 68, 68, 0.2); color: #ef4444; }
-    .recommendation-item { display: flex; align-items: flex-start; gap: 10px; padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.05); }
-    .recommendation-item:last-child { border-bottom: none; }
-    .rec-bullet { color: #0ea5e9; font-size: 1.2rem; }
     .main-factor { background: rgba(139, 92, 246, 0.1); border: 1px solid rgba(139, 92, 246, 0.3); border-radius: 10px; padding: 14px; margin-bottom: 12px; text-align: center; }
     .main-factor .label { color: #a78bfa; font-size: 0.75rem; margin-bottom: 6px; }
     .main-factor .text { font-size: 1rem; font-weight: 600; }
@@ -138,8 +135,6 @@
     .missing-item { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 8px; font-size: 0.9rem; }
     .missing-item.done { color: #22c55e; }
     .missing-item.needed { color: #ef4444; }
-    
-    /* Training Plan Styles */
     .training-plan-card { background: linear-gradient(135deg, rgba(34, 197, 94, 0.1) 0%, rgba(22, 163, 74, 0.1) 100%); border: 1px solid rgba(34, 197, 94, 0.3); border-radius: 14px; padding: 20px; margin-bottom: 16px; }
     .training-plan-card h2 { color: #22c55e; }
     .plan-header { background: rgba(255,255,255,0.05); border-radius: 10px; padding: 16px; margin-bottom: 16px; text-align: center; }
@@ -171,6 +166,12 @@
     .plan-meta-item .label { font-size: 0.7rem; color: #94a3b8; }
     .coach-plan-preview { background: rgba(34, 197, 94, 0.1); padding: 10px; border-radius: 8px; margin-top: 10px; font-size: 0.8rem; }
     .coach-plan-preview .label { color: #22c55e; margin-bottom: 4px; }
+    .analytics-card { background: linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(124, 58, 237, 0.1) 100%); border: 1px solid rgba(139, 92, 246, 0.3); border-radius: 14px; padding: 20px; margin-bottom: 16px; }
+    .analytics-card h2 { color: #a78bfa; }
+    .analytics-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+    .analytics-box { background: rgba(255,255,255,0.03); padding: 14px; border-radius: 10px; text-align: center; }
+    .analytics-box .number { font-size: 1.5rem; font-weight: 700; color: #a78bfa; }
+    .analytics-box .label { font-size: 0.7rem; color: #94a3b8; }
   </style>
 </head>
 <body>
@@ -219,6 +220,15 @@
             <div class="summary-box"><div class="number" id="noGoalsCount">0</div><div class="label">No Goals</div></div>
           </div>
         </div>
+        <div class="analytics-card">
+          <h2>📈 Beta Analytics</h2>
+          <div class="analytics-grid">
+            <div class="analytics-box"><div class="number" id="totalEvents">0</div><div class="label">Total Events</div></div>
+            <div class="analytics-box"><div class="number" id="leaderboardViews">0</div><div class="label">Leaderboard Views</div></div>
+            <div class="analytics-box"><div class="number" id="timesLogged">0</div><div class="label">Times Logged</div></div>
+            <div class="analytics-box"><div class="number" id="errorCount">0</div><div class="label">Errors</div></div>
+          </div>
+        </div>
         <div class="leaderboard-card"><h2>🏆 Leaderboard</h2><div id="coachLeaderboard"></div></div>
         <div class="card"><h2>👥 Swimmers</h2><div id="coachSwimmersList"></div></div>
         <div class="card">
@@ -243,18 +253,8 @@
             <div class="trend-item"><div class="value" id="myGoalRate">-</div><div class="label">Goals</div></div>
           </div>
         </div>
-        
-        <!-- Weekly Training Plan -->
-        <div class="training-plan-card">
-          <h2>📅 This Week's Training</h2>
-          <div id="trainingPlanContent"><p class="empty-state">Loading plan...</p></div>
-        </div>
-        
-        <div class="insights-card">
-          <h2>📊 Insights</h2>
-          <div id="insightsContent"><p class="empty-state">Loading...</p></div>
-        </div>
-        
+        <div class="training-plan-card"><h2>📅 This Week's Training</h2><div id="trainingPlanContent"><p class="empty-state">Loading...</p></div></div>
+        <div class="insights-card"><h2>📊 Insights</h2><div id="insightsContent"><p class="empty-state">Loading...</p></div></div>
         <div class="card"><h2>📈 Progress</h2><div id="progressList"></div></div>
         <div class="card">
           <h2>🎥 Upload Video</h2>
@@ -302,6 +302,18 @@
   <script>
     let currentUser = null, accessToken = null, selectedFile = null;
 
+    // Analytics helper
+    async function track(eventType, eventData = {}) {
+      if (!currentUser) return;
+      try {
+        await fetch('/api/analytics/track', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: currentUser.id, eventType, eventData })
+        });
+      } catch (e) { console.log('Track failed:', e); }
+    }
+
     function showTab(tab) {
       document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
       event.target.classList.add('active');
@@ -334,8 +346,17 @@
       document.getElementById('dashboard').classList.add('active');
       document.getElementById('userName').textContent = currentUser.name;
       document.getElementById('userRole').textContent = currentUser.role;
-      if (currentUser.role === 'coach') { document.getElementById('coachSection').style.display = 'block'; loadCoachDashboard(); loadCoachLeaderboard(); }
+      if (currentUser.role === 'coach') { document.getElementById('coachSection').style.display = 'block'; loadCoachDashboard(); loadCoachLeaderboard(); loadAnalytics(); }
       else { document.getElementById('swimmerSection').style.display = 'block'; loadSwimmerLeaderboard(); loadTrainingPlan(); loadInsights(); loadProgress(); loadTimes(); loadFeedback(); }
+    }
+
+    async function loadAnalytics() {
+      const res = await fetch('/api/analytics/summary');
+      const data = await res.json();
+      document.getElementById('totalEvents').textContent = data.totalEvents || 0;
+      document.getElementById('leaderboardViews').textContent = data.byType?.leaderboard_view || 0;
+      document.getElementById('timesLogged').textContent = data.byType?.time_logged || 0;
+      document.getElementById('errorCount').textContent = data.byType?.error || 0;
     }
 
     async function loadCoachDashboard() {
@@ -348,7 +369,7 @@
       const list = document.getElementById('coachSwimmersList');
       if (data.swimmers.length === 0) { list.innerHTML = '<p class="empty-state">No swimmers</p>'; return; }
       list.innerHTML = data.swimmers.map(s => {
-        const planPreview = s.currentPlan ? `<div class="coach-plan-preview"><div class="label">📅 This Week's Focus</div><div>${s.currentPlan.plan.weekFocus}</div></div>` : '';
+        const planPreview = s.currentPlan ? `<div class="coach-plan-preview"><div class="label">📅 Focus</div><div>${s.currentPlan.plan.weekFocus}</div></div>` : '';
         return `<div class="swimmer-detail-card ${s.status}"><div class="swimmer-detail-header"><h4>${s.name}</h4><span class="status-badge status-${s.status}">${s.status === 'ahead' ? '✓' : s.status === 'behind' ? '↓' : '-'}</span></div><div class="swimmer-detail-stats"><span>Goals<strong>${s.goalsAhead}/${s.goalsCount}</strong></span><span>Sessions<strong>${s.sessionsThisMonth}</strong></span></div>${planPreview}</div>`;
       }).join('');
     }
@@ -356,6 +377,7 @@
     async function loadCoachLeaderboard() {
       const res = await fetch(`/api/leaderboard/${currentUser.id}`);
       const data = await res.json();
+      track('leaderboard_view', { role: 'coach' });
       const c = document.getElementById('coachLeaderboard');
       if (!data.enabled || data.leaderboard.length === 0) { c.innerHTML = '<p class="empty-state">Add swimmers</p>'; return; }
       c.innerHTML = data.leaderboard.map(s => `<div class="leaderboard-entry ${s.rank <= 3 ? 'rank-' + s.rank : ''}"><div class="rank-badge ${s.rank > 3 ? 'default' : ''}">${s.rank}</div><div class="leaderboard-info"><div class="leaderboard-name">${s.name}</div><div class="leaderboard-stats"><span>📈${s.improvementPct > 0 ? '+' : ''}${s.improvementPct}%</span><span>🎯${s.goalCompletionRate}%</span></div></div><div class="leaderboard-score"><div class="score">${s.compositeScore}</div></div></div>`).join('');
@@ -365,6 +387,7 @@
       if (!currentUser.coach_id) return;
       const res = await fetch(`/api/leaderboard/${currentUser.coach_id}`);
       const data = await res.json();
+      track('leaderboard_view', { role: 'swimmer' });
       if (!data.enabled || data.leaderboard.length === 0) return;
       const me = data.leaderboard.find(s => s.id === currentUser.id);
       if (!me) return;
@@ -383,54 +406,13 @@
       const res = await fetch(`/api/training-plan/${currentUser.id}`);
       const data = await res.json();
       const c = document.getElementById('trainingPlanContent');
-      
-      if (!data.ready) {
-        c.innerHTML = `<div class="missing-data"><div class="icon">📋</div><h4>Complete to unlock:</h4><div class="missing-item ${data.missing.goals ? 'needed' : 'done'}">${data.missing.goals ? '❌' : '✅'} Goal</div><div class="missing-item ${data.missing.times ? 'needed' : 'done'}">${data.missing.times ? '❌' : '✅'} Times</div><div class="missing-item ${data.missing.video ? 'needed' : 'done'}">${data.missing.video ? '❌' : '✅'} Video</div></div>`;
-        return;
-      }
-      
+      if (!data.ready) { c.innerHTML = `<div class="missing-data"><div class="icon">📋</div><h4>Complete to unlock:</h4><div class="missing-item ${data.missing.goals ? 'needed' : 'done'}">${data.missing.goals ? '❌' : '✅'} Goal</div><div class="missing-item ${data.missing.times ? 'needed' : 'done'}">${data.missing.times ? '❌' : '✅'} Times</div><div class="missing-item ${data.missing.video ? 'needed' : 'done'}">${data.missing.video ? '❌' : '✅'} Video</div></div>`; return; }
       const p = data.plan;
-      let html = `
-        <div class="plan-header">
-          <div class="week">Week of ${data.weekStart}</div>
-          <div class="focus">${p.weekFocus}</div>
-          <div class="intensity"><span class="intensity-badge intensity-${p.intensity}">${p.intensity.toUpperCase()}</span></div>
-        </div>
-        <div class="focus-areas">${p.focusAreas.map(f => `<span class="focus-tag">${f}</span>`).join('')}</div>
-      `;
-      
+      let html = `<div class="plan-header"><div class="week">Week of ${data.weekStart}</div><div class="focus">${p.weekFocus}</div><div class="intensity"><span class="intensity-badge intensity-${p.intensity}">${p.intensity.toUpperCase()}</span></div></div><div class="focus-areas">${p.focusAreas.map(f => `<span class="focus-tag">${f}</span>`).join('')}</div>`;
       p.workouts.forEach(w => {
-        html += `
-          <div class="workout-day">
-            <div class="day-header">
-              <span class="day-name">${w.day}</span>
-              <span class="day-type">${w.type}</span>
-              <span class="day-distance">${w.totalDistance}</span>
-            </div>
-            <div class="workout-section">
-              <div class="section-label">Warm-up</div>
-              <div class="workout-set"><div class="set-name">${w.warmup}</div></div>
-            </div>
-            <div class="workout-section">
-              <div class="section-label">Main Set</div>
-              ${w.main.map(m => `<div class="workout-set"><div class="set-name">${m.set}</div><div class="set-details">Rest: ${m.rest} | Focus: ${m.focus}</div></div>`).join('')}
-            </div>
-            <div class="workout-section">
-              <div class="section-label">Cool-down</div>
-              <div class="workout-set"><div class="set-name">${w.cooldown}</div></div>
-            </div>
-          </div>
-        `;
+        html += `<div class="workout-day"><div class="day-header"><span class="day-name">${w.day}</span><span class="day-type">${w.type}</span><span class="day-distance">${w.totalDistance}</span></div><div class="workout-section"><div class="section-label">Warm-up</div><div class="workout-set"><div class="set-name">${w.warmup}</div></div></div><div class="workout-section"><div class="section-label">Main</div>${w.main.map(m => `<div class="workout-set"><div class="set-name">${m.set}</div><div class="set-details">Rest: ${m.rest} | ${m.focus}</div></div>`).join('')}</div><div class="workout-section"><div class="section-label">Cool-down</div><div class="workout-set"><div class="set-name">${w.cooldown}</div></div></div></div>`;
       });
-      
-      html += `
-        <div class="plan-meta">
-          <div class="plan-meta-item"><div class="value">${p.sessionsPerWeek}</div><div class="label">Sessions</div></div>
-          <div class="plan-meta-item"><div class="value">${p.totalWeeklyDistance}</div><div class="label">Total</div></div>
-        </div>
-        <div class="plan-tips"><h4>💡 Tips</h4>${p.tips.map(t => `<div class="tip-item">• ${t}</div>`).join('')}</div>
-      `;
-      
+      html += `<div class="plan-meta"><div class="plan-meta-item"><div class="value">${p.sessionsPerWeek}</div><div class="label">Sessions</div></div><div class="plan-meta-item"><div class="value">${p.totalWeeklyDistance}</div><div class="label">Total</div></div></div><div class="plan-tips"><h4>💡 Tips</h4>${p.tips.map(t => `<div class="tip-item">• ${t}</div>`).join('')}</div>`;
       c.innerHTML = html;
     }
 
@@ -441,7 +423,7 @@
       if (data.totalSessions < 3) { c.innerHTML = '<p class="empty-state">Log 3+ sessions</p>'; return; }
       let html = '';
       const trendClass = data.paceTrend.direction === 'improving' ? 'trend-up' : data.paceTrend.direction === 'declining' ? 'trend-down' : '';
-      html += `<div class="insight-section"><h4>📈 Pace Trend</h4><div class="insight-value ${trendClass}">${data.paceTrend.description}</div></div>`;
+      html += `<div class="insight-section"><h4>📈 Pace</h4><div class="insight-value ${trendClass}">${data.paceTrend.description}</div></div>`;
       html += `<div class="insight-section"><h4>💪 Consistency</h4><div class="insight-value">${data.consistencyScore}%</div><div class="insight-desc">${data.consistencyDesc}</div></div>`;
       if (data.fatigueSignal?.detected) html += `<div class="fatigue-alert"><h4>⚠️ Fatigue</h4><p>${data.fatigueSignal.recommendation}</p></div>`;
       if (data.goalInsight) html += `<div class="goal-insight ${data.goalInsight.status}"><div class="status">${data.goalInsight.message}</div></div>`;
@@ -510,6 +492,7 @@
     }
 
     function logout() {
+      track('logout', {});
       localStorage.removeItem('token'); localStorage.removeItem('user'); currentUser = null;
       document.getElementById('dashboard').classList.remove('active');
       document.getElementById('authSection').classList.add('active');
