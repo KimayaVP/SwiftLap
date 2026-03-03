@@ -12,85 +12,59 @@
       min-height: 100vh;
       color: white;
     }
-    .container { max-width: 400px; margin: 0 auto; padding: 40px 20px; }
-    .header { text-align: center; margin-bottom: 30px; }
-    .header h1 { font-size: 1.8rem; margin-bottom: 8px; }
-    .header p { color: #94a3b8; font-size: 0.9rem; }
+    .container { max-width: 420px; margin: 0 auto; padding: 30px 20px; }
+    .header { text-align: center; margin-bottom: 25px; }
+    .header h1 { font-size: 1.6rem; margin-bottom: 6px; }
+    .header p { color: #94a3b8; font-size: 0.85rem; }
     
-    .card {
-      background: rgba(255,255,255,0.05);
-      border-radius: 16px;
-      padding: 24px;
-      margin-bottom: 20px;
-    }
-    .card h2 { font-size: 1.1rem; margin-bottom: 16px; }
+    .card { background: rgba(255,255,255,0.05); border-radius: 14px; padding: 20px; margin-bottom: 16px; }
+    .card h2 { font-size: 1rem; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
     
-    .tabs {
-      display: flex;
-      gap: 10px;
-      margin-bottom: 20px;
-    }
-    .tab {
-      flex: 1;
-      padding: 12px;
-      border: none;
-      border-radius: 8px;
-      background: rgba(255,255,255,0.1);
-      color: #94a3b8;
-      cursor: pointer;
-      font-weight: 600;
-    }
+    .tabs { display: flex; gap: 8px; margin-bottom: 16px; }
+    .tab { flex: 1; padding: 10px; border: none; border-radius: 8px; background: rgba(255,255,255,0.1); color: #94a3b8; cursor: pointer; font-weight: 600; font-size: 0.9rem; }
     .tab.active { background: #0ea5e9; color: white; }
     
-    .form-group { margin-bottom: 16px; }
-    .form-group label { display: block; margin-bottom: 6px; color: #94a3b8; font-size: 0.85rem; }
-    .form-group input, .form-group select {
-      width: 100%;
-      padding: 12px;
-      border-radius: 8px;
-      border: 1px solid rgba(255,255,255,0.1);
-      background: rgba(255,255,255,0.05);
-      color: white;
-      font-size: 1rem;
-    }
+    .form-group { margin-bottom: 14px; }
+    .form-group label { display: block; margin-bottom: 5px; color: #94a3b8; font-size: 0.8rem; }
+    .form-group input, .form-group select { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.05); color: white; font-size: 0.95rem; }
+    .time-inputs { display: flex; gap: 8px; }
+    .time-inputs input { text-align: center; }
     
-    .btn {
-      width: 100%;
-      padding: 14px;
-      border-radius: 10px;
-      border: none;
-      font-size: 1rem;
-      font-weight: 600;
-      cursor: pointer;
-    }
+    .btn { width: 100%; padding: 12px; border-radius: 10px; border: none; font-size: 0.95rem; font-weight: 600; cursor: pointer; }
     .btn-primary { background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%); color: white; }
-    .btn-secondary { background: rgba(255,255,255,0.1); color: white; margin-top: 10px; }
+    .btn-secondary { background: rgba(255,255,255,0.1); color: white; margin-top: 8px; }
+    .btn-success { background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%); color: white; }
     
-    .error { color: #ef4444; font-size: 0.85rem; margin-bottom: 10px; }
-    .success { color: #22c55e; font-size: 0.85rem; margin-bottom: 10px; }
+    .error { color: #ef4444; font-size: 0.8rem; margin-bottom: 8px; }
+    .success { color: #22c55e; font-size: 0.8rem; margin-bottom: 8px; }
     
-    .dashboard { display: none; }
-    .auth-section { display: block; }
+    .user-info { background: rgba(34, 197, 94, 0.1); border: 1px solid rgba(34, 197, 94, 0.3); padding: 14px; border-radius: 10px; margin-bottom: 16px; }
+    .user-info h3 { color: #22c55e; margin-bottom: 4px; font-size: 1rem; }
+    .user-info p { font-size: 0.85rem; color: #94a3b8; }
     
-    .user-info {
-      background: rgba(34, 197, 94, 0.1);
-      border: 1px solid rgba(34, 197, 94, 0.3);
-      padding: 16px;
-      border-radius: 10px;
-      margin-bottom: 20px;
-    }
-    .user-info h3 { color: #22c55e; margin-bottom: 8px; }
+    .progress-card { background: rgba(255,255,255,0.03); padding: 14px; border-radius: 10px; margin-bottom: 10px; }
+    .progress-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+    .progress-header h4 { font-size: 0.95rem; }
+    .status-badge { padding: 4px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; }
+    .status-ahead { background: rgba(34, 197, 94, 0.2); color: #22c55e; }
+    .status-behind { background: rgba(239, 68, 68, 0.2); color: #ef4444; }
+    .status-no_data { background: rgba(148, 163, 184, 0.2); color: #94a3b8; }
+    .progress-stats { display: flex; gap: 16px; font-size: 0.8rem; color: #94a3b8; }
+    .progress-stats span { display: flex; flex-direction: column; }
+    .progress-stats strong { color: white; font-size: 1rem; }
     
-    .swimmer-card {
-      background: rgba(255,255,255,0.03);
-      padding: 12px;
-      border-radius: 8px;
-      margin-bottom: 8px;
-      display: flex;
-      justify-content: space-between;
-    }
+    .time-entry { display: flex; justify-content: space-between; align-items: center; padding: 10px; background: rgba(255,255,255,0.03); border-radius: 8px; margin-bottom: 6px; }
+    .time-entry .stroke { font-weight: 600; font-size: 0.9rem; }
+    .time-entry .details { color: #94a3b8; font-size: 0.8rem; }
+    .time-entry .time { font-size: 1.1rem; font-weight: 700; color: #0ea5e9; }
     
-    .footer { text-align: center; margin-top: 40px; color: #64748b; font-size: 0.85rem; }
+    .swimmer-card { background: rgba(255,255,255,0.03); padding: 10px; border-radius: 8px; margin-bottom: 6px; display: flex; justify-content: space-between; }
+    
+    .empty-state { text-align: center; color: #64748b; padding: 16px; font-size: 0.85rem; }
+    .footer { text-align: center; margin-top: 30px; color: #64748b; font-size: 0.8rem; }
+    
+    .dashboard, .auth-section { display: none; }
+    .auth-section.active, .dashboard.active { display: block; }
   </style>
 </head>
 <body>
@@ -101,56 +75,32 @@
     </div>
 
     <!-- Auth Section -->
-    <div id="authSection" class="auth-section">
+    <div id="authSection" class="auth-section active">
       <div class="card">
         <div class="tabs">
           <button class="tab active" onclick="showTab('login')">Login</button>
           <button class="tab" onclick="showTab('signup')">Sign Up</button>
         </div>
-        
         <div id="error" class="error"></div>
         <div id="success" class="success"></div>
         
-        <!-- Login Form -->
         <form id="loginForm">
-          <div class="form-group">
-            <label>Email</label>
-            <input type="email" id="loginEmail" required>
-          </div>
-          <div class="form-group">
-            <label>Password</label>
-            <input type="password" id="loginPassword" required>
-          </div>
+          <div class="form-group"><label>Email</label><input type="email" id="loginEmail" required></div>
+          <div class="form-group"><label>Password</label><input type="password" id="loginPassword" required></div>
           <button type="submit" class="btn btn-primary">Login</button>
         </form>
         
-        <!-- Signup Form -->
         <form id="signupForm" style="display:none;">
-          <div class="form-group">
-            <label>Name</label>
-            <input type="text" id="signupName" required>
-          </div>
-          <div class="form-group">
-            <label>Email</label>
-            <input type="email" id="signupEmail" required>
-          </div>
-          <div class="form-group">
-            <label>Password</label>
-            <input type="password" id="signupPassword" required minlength="6">
-          </div>
-          <div class="form-group">
-            <label>I am a...</label>
-            <select id="signupRole">
-              <option value="swimmer">Swimmer</option>
-              <option value="coach">Coach</option>
-            </select>
-          </div>
+          <div class="form-group"><label>Name</label><input type="text" id="signupName" required></div>
+          <div class="form-group"><label>Email</label><input type="email" id="signupEmail" required></div>
+          <div class="form-group"><label>Password</label><input type="password" id="signupPassword" required minlength="6"></div>
+          <div class="form-group"><label>I am a...</label><select id="signupRole"><option value="swimmer">Swimmer</option><option value="coach">Coach</option></select></div>
           <button type="submit" class="btn btn-primary">Create Account</button>
         </form>
       </div>
     </div>
 
-    <!-- Dashboard Section -->
+    <!-- Dashboard -->
     <div id="dashboard" class="dashboard">
       <div class="user-info">
         <h3>Welcome, <span id="userName"></span>!</h3>
@@ -162,22 +112,12 @@
         <div class="card">
           <h2>👥 Add Swimmer</h2>
           <form id="addSwimmerForm">
-            <div class="form-group">
-              <label>Swimmer Name</label>
-              <input type="text" id="swimmerName" required>
-            </div>
-            <div class="form-group">
-              <label>Swimmer Email</label>
-              <input type="email" id="swimmerEmail" required>
-            </div>
-            <div class="form-group">
-              <label>Password</label>
-              <input type="password" id="swimmerPassword" required minlength="6">
-            </div>
+            <div class="form-group"><label>Name</label><input type="text" id="swimmerName" required></div>
+            <div class="form-group"><label>Email</label><input type="email" id="swimmerEmail" required></div>
+            <div class="form-group"><label>Password</label><input type="password" id="swimmerPassword" required minlength="6"></div>
             <button type="submit" class="btn btn-primary">Add Swimmer</button>
           </form>
         </div>
-        
         <div class="card">
           <h2>🏊 My Swimmers</h2>
           <div id="swimmersList"></div>
@@ -186,9 +126,84 @@
       
       <!-- Swimmer Section -->
       <div id="swimmerSection" style="display:none;">
+        <!-- Progress Overview -->
         <div class="card">
-          <h2>🏊 Swimmer Dashboard</h2>
-          <p style="color: #94a3b8;">Your training data will appear here.</p>
+          <h2>📈 Progress vs Goals</h2>
+          <div id="progressList"></div>
+        </div>
+        
+        <!-- Log Time -->
+        <div class="card">
+          <h2>⏱️ Log Swim Time</h2>
+          <form id="logTimeForm">
+            <div class="form-group">
+              <label>Stroke</label>
+              <select id="timeStroke">
+                <option value="Freestyle">Freestyle</option>
+                <option value="Backstroke">Backstroke</option>
+                <option value="Breaststroke">Breaststroke</option>
+                <option value="Butterfly">Butterfly</option>
+                <option value="IM">Individual Medley</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Distance (m)</label>
+              <select id="timeDistance">
+                <option value="50">50m</option>
+                <option value="100">100m</option>
+                <option value="200">200m</option>
+                <option value="400">400m</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Time</label>
+              <div class="time-inputs">
+                <input type="number" id="timeMinutes" placeholder="Min" min="0" required>
+                <input type="number" id="timeSeconds" placeholder="Sec" min="0" max="59" required>
+              </div>
+            </div>
+            <button type="submit" class="btn btn-primary">Log Time</button>
+          </form>
+        </div>
+        
+        <!-- Set Goal -->
+        <div class="card">
+          <h2>🎯 Set Monthly Goal</h2>
+          <form id="setGoalForm">
+            <div class="form-group">
+              <label>Stroke</label>
+              <select id="goalStroke">
+                <option value="Freestyle">Freestyle</option>
+                <option value="Backstroke">Backstroke</option>
+                <option value="Breaststroke">Breaststroke</option>
+                <option value="Butterfly">Butterfly</option>
+                <option value="IM">Individual Medley</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Distance (m)</label>
+              <select id="goalDistance">
+                <option value="50">50m</option>
+                <option value="100">100m</option>
+                <option value="200">200m</option>
+                <option value="400">400m</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Target Time</label>
+              <div class="time-inputs">
+                <input type="number" id="goalMinutes" placeholder="Min" min="0" required>
+                <input type="number" id="goalSeconds" placeholder="Sec" min="0" max="59" required>
+              </div>
+            </div>
+            <button type="submit" class="btn btn-success">Set Goal</button>
+          </form>
+        </div>
+        
+        <!-- Recent Times -->
+        <div class="card">
+          <h2>📊 Recent Times</h2>
+          <div id="timesList"></div>
         </div>
       </div>
       
@@ -202,7 +217,6 @@
     let currentUser = null;
     let accessToken = null;
 
-    // Tab switching
     function showTab(tab) {
       document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
       event.target.classList.add('active');
@@ -216,19 +230,19 @@
       document.getElementById('success').textContent = '';
     }
 
-    function showError(msg) {
-      document.getElementById('error').textContent = msg;
-    }
+    function showError(msg) { document.getElementById('error').textContent = msg; }
+    function showSuccess(msg) { document.getElementById('success').textContent = msg; }
 
-    function showSuccess(msg) {
-      document.getElementById('success').textContent = msg;
+    function formatTime(seconds) {
+      const min = Math.floor(seconds / 60);
+      const sec = seconds % 60;
+      return `${min}:${sec.toString().padStart(2, '0')}`;
     }
 
     // Signup
     document.getElementById('signupForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       clearMessages();
-      
       const res = await fetch('/api/auth/signup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -239,22 +253,15 @@
           role: document.getElementById('signupRole').value
         })
       });
-      
       const data = await res.json();
-      if (data.error) {
-        showError(data.error);
-      } else {
-        showSuccess('Account created! Please login.');
-        showTab('login');
-        document.querySelector('.tab').click();
-      }
+      if (data.error) showError(data.error);
+      else { showSuccess('Account created! Please login.'); showTab('login'); }
     });
 
     // Login
     document.getElementById('loginForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       clearMessages();
-      
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -263,11 +270,9 @@
           password: document.getElementById('loginPassword').value
         })
       });
-      
       const data = await res.json();
-      if (data.error) {
-        showError(data.error);
-      } else {
+      if (data.error) showError(data.error);
+      else {
         currentUser = data.user;
         accessToken = data.session.access_token;
         localStorage.setItem('token', accessToken);
@@ -276,10 +281,9 @@
       }
     });
 
-    // Show dashboard
     function showDashboard() {
-      document.getElementById('authSection').style.display = 'none';
-      document.getElementById('dashboard').style.display = 'block';
+      document.getElementById('authSection').classList.remove('active');
+      document.getElementById('dashboard').classList.add('active');
       document.getElementById('userName').textContent = currentUser.name;
       document.getElementById('userRole').textContent = currentUser.role;
       
@@ -288,13 +292,14 @@
         loadSwimmers();
       } else {
         document.getElementById('swimmerSection').style.display = 'block';
+        loadProgress();
+        loadTimes();
       }
     }
 
-    // Add swimmer (coach only)
+    // Coach: Add swimmer
     document.getElementById('addSwimmerForm').addEventListener('submit', async (e) => {
       e.preventDefault();
-      
       const res = await fetch('/api/coach/add-swimmer', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -305,50 +310,120 @@
           coachId: currentUser.id
         })
       });
-      
       const data = await res.json();
-      if (data.error) {
-        alert(data.error);
-      } else {
-        document.getElementById('addSwimmerForm').reset();
-        loadSwimmers();
-      }
+      if (data.error) alert(data.error);
+      else { document.getElementById('addSwimmerForm').reset(); loadSwimmers(); }
     });
 
-    // Load swimmers
     async function loadSwimmers() {
       const res = await fetch(`/api/coach/swimmers/${currentUser.id}`);
       const data = await res.json();
-      
       const list = document.getElementById('swimmersList');
-      if (data.swimmers.length === 0) {
-        list.innerHTML = '<p style="color: #64748b;">No swimmers added yet</p>';
-      } else {
-        list.innerHTML = data.swimmers.map(s => `
-          <div class="swimmer-card">
-            <span>${s.name}</span>
-            <span style="color: #94a3b8;">${s.email}</span>
-          </div>
-        `).join('');
-      }
+      if (data.swimmers.length === 0) list.innerHTML = '<p class="empty-state">No swimmers added yet</p>';
+      else list.innerHTML = data.swimmers.map(s => `<div class="swimmer-card"><span>${s.name}</span><span style="color:#94a3b8">${s.email}</span></div>`).join('');
     }
 
-    // Logout
+    // Log time
+    document.getElementById('logTimeForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const res = await fetch('/api/times', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          swimmerId: currentUser.id,
+          stroke: document.getElementById('timeStroke').value,
+          distance: document.getElementById('timeDistance').value,
+          minutes: document.getElementById('timeMinutes').value,
+          seconds: document.getElementById('timeSeconds').value
+        })
+      });
+      const data = await res.json();
+      if (data.error) alert(data.error);
+      else {
+        document.getElementById('timeMinutes').value = '';
+        document.getElementById('timeSeconds').value = '';
+        loadTimes();
+        loadProgress();
+      }
+    });
+
+    // Set goal
+    document.getElementById('setGoalForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const res = await fetch('/api/goals', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          swimmerId: currentUser.id,
+          stroke: document.getElementById('goalStroke').value,
+          distance: document.getElementById('goalDistance').value,
+          targetMinutes: document.getElementById('goalMinutes').value,
+          targetSeconds: document.getElementById('goalSeconds').value
+        })
+      });
+      const data = await res.json();
+      if (data.error) alert(data.error);
+      else {
+        document.getElementById('goalMinutes').value = '';
+        document.getElementById('goalSeconds').value = '';
+        loadProgress();
+      }
+    });
+
+    async function loadTimes() {
+      const res = await fetch(`/api/times/${currentUser.id}`);
+      const data = await res.json();
+      const list = document.getElementById('timesList');
+      if (data.times.length === 0) list.innerHTML = '<p class="empty-state">No times logged yet</p>';
+      else list.innerHTML = data.times.slice(0, 5).map(t => `
+        <div class="time-entry">
+          <div><div class="stroke">${t.stroke}</div><div class="details">${t.distance}m • ${t.date}</div></div>
+          <div class="time">${formatTime(t.time_seconds)}</div>
+        </div>
+      `).join('');
+    }
+
+    async function loadProgress() {
+      const res = await fetch(`/api/progress/${currentUser.id}`);
+      const data = await res.json();
+      const list = document.getElementById('progressList');
+      
+      if (data.progress.length === 0) {
+        list.innerHTML = '<p class="empty-state">Set a goal to track progress</p>';
+        return;
+      }
+      
+      list.innerHTML = data.progress.map(p => `
+        <div class="progress-card">
+          <div class="progress-header">
+            <h4>${p.goal.stroke} ${p.goal.distance}m</h4>
+            <span class="status-badge status-${p.status}">${p.status === 'ahead' ? '✓ Ahead' : p.status === 'behind' ? '↓ Behind' : 'No Data'}</span>
+          </div>
+          <div class="progress-stats">
+            <span>Target<strong>${formatTime(p.goal.target_seconds)}</strong></span>
+            <span>Best<strong>${p.bestTime ? formatTime(p.bestTime) : '-'}</strong></span>
+            <span>Sessions<strong>${p.sessionsLogged}</strong></span>
+            ${p.gap !== null ? `<span>Gap<strong>${p.gap > 0 ? '+' : ''}${p.gap}s</strong></span>` : ''}
+          </div>
+        </div>
+      `).join('');
+    }
+
     function logout() {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
       currentUser = null;
-      accessToken = null;
-      document.getElementById('authSection').style.display = 'block';
-      document.getElementById('dashboard').style.display = 'none';
+      document.getElementById('dashboard').classList.remove('active');
+      document.getElementById('authSection').classList.add('active');
+      document.getElementById('coachSection').style.display = 'none';
+      document.getElementById('swimmerSection').style.display = 'none';
     }
 
     // Check existing session
-    const savedToken = localStorage.getItem('token');
     const savedUser = localStorage.getItem('user');
-    if (savedToken && savedUser) {
-      accessToken = savedToken;
+    if (savedUser) {
       currentUser = JSON.parse(savedUser);
+      accessToken = localStorage.getItem('token');
       showDashboard();
     }
   </script>
