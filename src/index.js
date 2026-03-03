@@ -13,36 +13,25 @@ const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANO
 app.use(express.static(path.join(__dirname, '../public')));
 app.use(express.json());
 
-// ========== VALIDATION HELPERS ==========
+// ========== VALIDATION ==========
 function validateTimeInput(stroke, distance, minutes, seconds) {
   const errors = [];
-  
-  // Valid strokes
   const validStrokes = ['Freestyle', 'Backstroke', 'Breaststroke', 'Butterfly', 'IM'];
-  if (!validStrokes.includes(stroke)) errors.push('Invalid stroke type');
-  
-  // Valid distances
+  if (!validStrokes.includes(stroke)) errors.push('Invalid stroke');
   const validDistances = [50, 100, 200, 400, 800, 1500];
   if (!validDistances.includes(parseInt(distance))) errors.push('Invalid distance');
-  
-  // Time validation
-  const mins = parseInt(minutes);
-  const secs = parseInt(seconds);
+  const mins = parseInt(minutes), secs = parseInt(seconds);
   if (isNaN(mins) || mins < 0 || mins > 30) errors.push('Minutes must be 0-30');
   if (isNaN(secs) || secs < 0 || secs > 59) errors.push('Seconds must be 0-59');
-  
-  // Impossible time checks (world record benchmarks)
   const totalSeconds = (mins * 60) + secs;
   const minTimes = { 50: 20, 100: 45, 200: 100, 400: 220, 800: 460, 1500: 870 };
   const maxTimes = { 50: 120, 100: 240, 200: 480, 400: 900, 800: 1800, 1500: 3600 };
-  
-  if (totalSeconds < minTimes[distance]) errors.push(`Time too fast for ${distance}m (min ${Math.floor(minTimes[distance]/60)}:${(minTimes[distance]%60).toString().padStart(2,'0')})`);
-  if (totalSeconds > maxTimes[distance]) errors.push(`Time too slow for ${distance}m (max ${Math.floor(maxTimes[distance]/60)}:${(maxTimes[distance]%60).toString().padStart(2,'0')})`);
-  
+  if (totalSeconds < minTimes[distance]) errors.push(`Time too fast for ${distance}m`);
+  if (totalSeconds > maxTimes[distance]) errors.push(`Time too slow for ${distance}m`);
   return { valid: errors.length === 0, errors, totalSeconds };
 }
 
-// ========== AUTH ROUTES ==========
+// ========== AUTH ==========
 app.get('/api/health', async (req, res) => {
   res.json({ status: 'ok', database: 'connected', timestamp: new Date().toISOString() });
 });
@@ -64,7 +53,7 @@ app.post('/api/auth/login', async (req, res) => {
   res.json({ success: true, user: profile, session: data.session });
 });
 
-// ========== COACH ROUTES ==========
+// ========== COACH ==========
 app.post('/api/coach/add-swimmer', async (req, res) => {
   const { email, password, name, coachId } = req.body;
   const { data: authData, error: authError } = await supabase.auth.signUp({ email, password });
@@ -123,110 +112,211 @@ app.get('/api/leaderboard/:coachId', async (req, res) => {
   const startOfMonth = `${month}-01`;
   const startOfPrevMonth = `${prevMonth}-01`;
   const endOfPrevMonth = `${month}-01`;
-  
-  // Get swimmers
   const { data: swimmers } = await supabase.from('profiles').select('*').eq('coach_id', coachId);
   if (!swimmers || swimmers.length === 0) return res.json({ leaderboard: [], enabled: false });
-  
   const swimmerIds = swimmers.map(s => s.id);
-  
-  // Get all times
   const { data: allTimes } = await supabase.from('swim_times').select('*').in('swimmer_id', swimmerIds).order('created_at', { ascending: true });
-  
-  // Get goals
   const { data: goals } = await supabase.from('goals').select('*').in('swimmer_id', swimmerIds).eq('month', month);
-  
-  // Calculate metrics for each swimmer
   const leaderboard = swimmers.map(swimmer => {
     const swimmerTimes = (allTimes || []).filter(t => t.swimmer_id === swimmer.id);
     const thisMonthTimes = swimmerTimes.filter(t => t.date >= startOfMonth);
     const prevMonthTimes = swimmerTimes.filter(t => t.date >= startOfPrevMonth && t.date < endOfPrevMonth);
     const swimmerGoals = (goals || []).filter(g => g.swimmer_id === swimmer.id);
-    
-    // Improvement % (compare avg this month vs last month)
     let improvementPct = 0;
     if (prevMonthTimes.length > 0 && thisMonthTimes.length > 0) {
       const prevAvg = prevMonthTimes.reduce((sum, t) => sum + t.time_seconds, 0) / prevMonthTimes.length;
       const thisAvg = thisMonthTimes.reduce((sum, t) => sum + t.time_seconds, 0) / thisMonthTimes.length;
       improvementPct = ((prevAvg - thisAvg) / prevAvg) * 100;
     }
-    
-    // Consistency score (sessions this month / expected sessions)
-    const expectedSessions = 12; // 3 per week
+    const expectedSessions = 12;
     const consistencyScore = Math.min(100, (thisMonthTimes.length / expectedSessions) * 100);
-    
-    // Goal completion rate
     let goalCompletionRate = 0;
     if (swimmerGoals.length > 0) {
       const completed = swimmerGoals.filter(goal => {
         const relevantTimes = thisMonthTimes.filter(t => t.stroke === goal.stroke && t.distance === goal.distance);
         if (relevantTimes.length === 0) return false;
-        const bestTime = Math.min(...relevantTimes.map(t => t.time_seconds));
-        return bestTime <= goal.target_seconds;
+        return Math.min(...relevantTimes.map(t => t.time_seconds)) <= goal.target_seconds;
       }).length;
       goalCompletionRate = (completed / swimmerGoals.length) * 100;
     }
-    
-    // Composite score (weighted)
     const compositeScore = (improvementPct * 0.4) + (consistencyScore * 0.3) + (goalCompletionRate * 0.3);
-    
-    return {
-      id: swimmer.id,
-      name: swimmer.name,
-      improvementPct: Math.round(improvementPct * 10) / 10,
-      consistencyScore: Math.round(consistencyScore),
-      goalCompletionRate: Math.round(goalCompletionRate),
-      compositeScore: Math.round(compositeScore * 10) / 10,
-      sessionsThisMonth: thisMonthTimes.length,
-      sessionsLastMonth: prevMonthTimes.length
-    };
+    return { id: swimmer.id, name: swimmer.name, improvementPct: Math.round(improvementPct * 10) / 10, consistencyScore: Math.round(consistencyScore), goalCompletionRate: Math.round(goalCompletionRate), compositeScore: Math.round(compositeScore * 10) / 10, sessionsThisMonth: thisMonthTimes.length, sessionsLastMonth: prevMonthTimes.length };
   });
-  
-  // Sort by composite score
   leaderboard.sort((a, b) => b.compositeScore - a.compositeScore);
-  
-  // Add rank and delta from top
   const topScore = leaderboard[0]?.compositeScore || 0;
-  leaderboard.forEach((swimmer, index) => {
-    swimmer.rank = index + 1;
-    swimmer.deltaFromTop = Math.round((topScore - swimmer.compositeScore) * 10) / 10;
-  });
-  
+  leaderboard.forEach((s, i) => { s.rank = i + 1; s.deltaFromTop = Math.round((topScore - s.compositeScore) * 10) / 10; });
   res.json({ leaderboard, enabled: true });
 });
 
-// ========== TIME LOGGING WITH VALIDATION ==========
+// ========== PERFORMANCE INSIGHTS ==========
+app.get('/api/insights/:swimmerId', async (req, res) => {
+  const swimmerId = req.params.swimmerId;
+  const now = new Date();
+  const thirtyDaysAgo = new Date(now.setDate(now.getDate() - 30)).toISOString().split('T')[0];
+  const sixtyDaysAgo = new Date(new Date().setDate(new Date().getDate() - 60)).toISOString().split('T')[0];
+  
+  // Get swimmer profile
+  const { data: profile } = await supabase.from('profiles').select('*').eq('id', swimmerId).single();
+  if (!profile) return res.status(404).json({ error: 'Swimmer not found' });
+  
+  // Get all times
+  const { data: allTimes } = await supabase.from('swim_times').select('*').eq('swimmer_id', swimmerId).order('created_at', { ascending: true });
+  
+  // Get goals
+  const month = new Date().toISOString().slice(0, 7);
+  const { data: goals } = await supabase.from('goals').select('*').eq('swimmer_id', swimmerId).eq('month', month);
+  
+  // Get feedback
+  const { data: feedbacks } = await supabase.from('video_feedback').select('*').eq('swimmer_id', swimmerId).order('created_at', { ascending: false });
+  
+  const times = allTimes || [];
+  const last30Days = times.filter(t => t.date >= thirtyDaysAgo);
+  const prev30Days = times.filter(t => t.date >= sixtyDaysAgo && t.date < thirtyDaysAgo);
+  
+  // ===== COMPUTE INSIGHTS =====
+  
+  // 1. 30-day pace trend
+  let paceTrend = { direction: 'stable', change: 0, description: '' };
+  if (last30Days.length >= 3 && prev30Days.length >= 1) {
+    const recentAvg = last30Days.reduce((sum, t) => sum + t.time_seconds, 0) / last30Days.length;
+    const prevAvg = prev30Days.reduce((sum, t) => sum + t.time_seconds, 0) / prev30Days.length;
+    const change = prevAvg - recentAvg;
+    const changePct = ((change / prevAvg) * 100).toFixed(1);
+    if (change > 2) {
+      paceTrend = { direction: 'improving', change: Math.round(change), changePct, description: `Your pace improved by ${Math.round(change)}s on average` };
+    } else if (change < -2) {
+      paceTrend = { direction: 'declining', change: Math.round(change), changePct, description: `Your pace slowed by ${Math.abs(Math.round(change))}s on average` };
+    } else {
+      paceTrend = { direction: 'stable', change: 0, changePct: '0', description: 'Your pace is holding steady' };
+    }
+  }
+  
+  // 2. Improvement % (month over month)
+  const improvementPct = paceTrend.changePct || 0;
+  
+  // 3. Consistency score
+  const expectedSessions = 12;
+  const consistencyScore = Math.min(100, Math.round((last30Days.length / expectedSessions) * 100));
+  let consistencyDesc = '';
+  if (consistencyScore >= 80) consistencyDesc = 'Excellent training consistency';
+  else if (consistencyScore >= 50) consistencyDesc = 'Good consistency, try to add 1-2 more sessions/week';
+  else consistencyDesc = 'Inconsistent training is limiting your progress';
+  
+  // 4. Weakest stroke/distance (highest avg time relative to others)
+  let weakestArea = null;
+  const strokeDistanceTimes = {};
+  times.forEach(t => {
+    const key = `${t.stroke}-${t.distance}`;
+    if (!strokeDistanceTimes[key]) strokeDistanceTimes[key] = [];
+    strokeDistanceTimes[key].push(t.time_seconds);
+  });
+  
+  if (Object.keys(strokeDistanceTimes).length > 1) {
+    // Find area with least improvement or worst performance
+    const areas = Object.entries(strokeDistanceTimes).map(([key, times]) => {
+      const [stroke, distance] = key.split('-');
+      const avg = times.reduce((a, b) => a + b, 0) / times.length;
+      const recent = times.slice(-3);
+      const recentAvg = recent.reduce((a, b) => a + b, 0) / recent.length;
+      return { stroke, distance, avg, recentAvg, sessions: times.length };
+    });
+    
+    // Weakest = least sessions or least improvement
+    areas.sort((a, b) => a.sessions - b.sessions);
+    weakestArea = {
+      stroke: areas[0].stroke,
+      distance: areas[0].distance,
+      reason: areas[0].sessions < 3 ? 'Needs more practice' : 'Slowest improvement',
+      sessions: areas[0].sessions
+    };
+  }
+  
+  // 5. Fatigue signal detection
+  let fatigueSignal = null;
+  if (last30Days.length >= 5) {
+    const lastFive = last30Days.slice(-5);
+    const firstThree = lastFive.slice(0, 3);
+    const lastTwo = lastFive.slice(-2);
+    const firstAvg = firstThree.reduce((sum, t) => sum + t.time_seconds, 0) / 3;
+    const lastAvg = lastTwo.reduce((sum, t) => sum + t.time_seconds, 0) / 2;
+    if (lastAvg > firstAvg + 3) {
+      fatigueSignal = {
+        detected: true,
+        description: 'Recent times are slower - possible fatigue',
+        recommendation: 'Consider a recovery day or reduced intensity'
+      };
+    }
+  }
+  
+  // 6. Goal progress insight
+  let goalInsight = null;
+  if (goals && goals.length > 0) {
+    const goal = goals[0];
+    const relevantTimes = last30Days.filter(t => t.stroke === goal.stroke && t.distance === goal.distance);
+    if (relevantTimes.length > 0) {
+      const bestTime = Math.min(...relevantTimes.map(t => t.time_seconds));
+      const gap = bestTime - goal.target_seconds;
+      if (gap <= 0) {
+        goalInsight = { status: 'achieved', message: `You've hit your ${goal.stroke} ${goal.distance}m goal!`, gap: 0 };
+      } else if (gap <= 3) {
+        goalInsight = { status: 'close', message: `Just ${gap}s away from your goal - push harder!`, gap };
+      } else {
+        goalInsight = { status: 'working', message: `${gap}s to go - stay consistent`, gap };
+      }
+    }
+  }
+  
+  // 7. Ranking insight (why you're ranked here)
+  let rankingInsight = { factors: [], mainFactor: '' };
+  const factors = [];
+  if (parseFloat(improvementPct) > 2) factors.push({ factor: 'improvement', impact: 'positive', desc: 'Strong improvement boosting your rank' });
+  else if (parseFloat(improvementPct) < -2) factors.push({ factor: 'improvement', impact: 'negative', desc: 'Declining pace hurting your rank' });
+  if (consistencyScore >= 70) factors.push({ factor: 'consistency', impact: 'positive', desc: 'Good consistency helping your score' });
+  else factors.push({ factor: 'consistency', impact: 'negative', desc: 'Low consistency limiting your rank' });
+  if (goals && goals.length > 0) {
+    const completedGoals = goals.filter(g => {
+      const rt = last30Days.filter(t => t.stroke === g.stroke && t.distance === g.distance);
+      return rt.length > 0 && Math.min(...rt.map(t => t.time_seconds)) <= g.target_seconds;
+    }).length;
+    if (completedGoals > 0) factors.push({ factor: 'goals', impact: 'positive', desc: `${completedGoals} goal(s) achieved` });
+    else factors.push({ factor: 'goals', impact: 'negative', desc: 'No goals completed yet' });
+  }
+  rankingInsight.factors = factors;
+  rankingInsight.mainFactor = factors.find(f => f.impact === 'negative')?.desc || factors[0]?.desc || 'Keep training!';
+  
+  // 8. Actionable recommendations
+  const recommendations = [];
+  if (consistencyScore < 70) recommendations.push('Add 1-2 more sessions per week');
+  if (fatigueSignal?.detected) recommendations.push('Take a recovery day');
+  if (weakestArea) recommendations.push(`Focus on ${weakestArea.stroke} ${weakestArea.distance}m`);
+  if (parseFloat(improvementPct) < 0) recommendations.push('Review technique with video feedback');
+  if (recommendations.length === 0) recommendations.push('Maintain current training rhythm');
+  
+  res.json({
+    swimmerId,
+    totalSessions: times.length,
+    last30DaySessions: last30Days.length,
+    paceTrend,
+    improvementPct: parseFloat(improvementPct),
+    consistencyScore,
+    consistencyDesc,
+    weakestArea,
+    fatigueSignal,
+    goalInsight,
+    rankingInsight,
+    recommendations
+  });
+});
+
+// ========== TIMES ==========
 app.post('/api/times', async (req, res) => {
   const { swimmerId, stroke, distance, minutes, seconds } = req.body;
-  
-  // Validate input
   const validation = validateTimeInput(stroke, distance, minutes, seconds);
-  if (!validation.valid) {
-    return res.status(400).json({ error: validation.errors.join(', ') });
-  }
-  
+  if (!validation.valid) return res.status(400).json({ error: validation.errors.join(', ') });
   const today = new Date().toISOString().split('T')[0];
-  
-  // Check for duplicate
-  const { data: existing } = await supabase
-    .from('swim_times')
-    .select('*')
-    .eq('swimmer_id', swimmerId)
-    .eq('stroke', stroke)
-    .eq('distance', parseInt(distance))
-    .eq('date', today)
-    .eq('time_seconds', validation.totalSeconds);
-  
-  if (existing && existing.length > 0) {
-    return res.status(400).json({ error: 'Duplicate entry: This exact time was already logged today' });
-  }
-  
-  const { data, error } = await supabase
-    .from('swim_times')
-    .insert({ swimmer_id: swimmerId, stroke, distance: parseInt(distance), time_seconds: validation.totalSeconds })
-    .select()
-    .single();
-  
+  const { data: existing } = await supabase.from('swim_times').select('*').eq('swimmer_id', swimmerId).eq('stroke', stroke).eq('distance', parseInt(distance)).eq('date', today).eq('time_seconds', validation.totalSeconds);
+  if (existing && existing.length > 0) return res.status(400).json({ error: 'Duplicate entry' });
+  const { data, error } = await supabase.from('swim_times').insert({ swimmer_id: swimmerId, stroke, distance: parseInt(distance), time_seconds: validation.totalSeconds }).select().single();
   if (error) return res.status(400).json({ error: error.message });
   res.json({ success: true, time: data });
 });
@@ -266,10 +356,9 @@ app.get('/api/progress/:swimmerId', async (req, res) => {
   const progress = (goals || []).map(goal => {
     const relevantTimes = (times || []).filter(t => t.stroke === goal.stroke && t.distance === goal.distance);
     const bestTime = relevantTimes.length > 0 ? Math.min(...relevantTimes.map(t => t.time_seconds)) : null;
-    const avgTime = relevantTimes.length > 0 ? Math.round(relevantTimes.reduce((sum, t) => sum + t.time_seconds, 0) / relevantTimes.length) : null;
     const status = bestTime === null ? 'no_data' : bestTime <= goal.target_seconds ? 'ahead' : 'behind';
     const gap = bestTime ? bestTime - goal.target_seconds : null;
-    return { goal, sessionsLogged: relevantTimes.length, bestTime, avgTime, status, gap };
+    return { goal, sessionsLogged: relevantTimes.length, bestTime, status, gap };
   });
   res.json({ progress, times: times || [] });
 });
@@ -279,7 +368,7 @@ app.post('/api/video/upload', upload.single('video'), async (req, res) => {
   try {
     const { swimmerId, stroke } = req.body;
     const file = req.file;
-    if (!file) return res.status(400).json({ error: 'No video file provided' });
+    if (!file) return res.status(400).json({ error: 'No video' });
     const fileName = `${swimmerId}/${Date.now()}-${file.originalname}`;
     const { error: uploadError } = await supabase.storage.from('videos').upload(fileName, file.buffer, { contentType: file.mimetype });
     if (uploadError) return res.status(400).json({ error: uploadError.message });
@@ -304,103 +393,53 @@ app.get('/api/race-plan/:swimmerId', async (req, res) => {
   const { data: goals } = await supabase.from('goals').select('*').eq('swimmer_id', swimmerId).eq('month', month);
   const { data: times } = await supabase.from('swim_times').select('*').eq('swimmer_id', swimmerId).order('created_at', { ascending: false });
   const { data: feedbacks } = await supabase.from('video_feedback').select('*').eq('swimmer_id', swimmerId).order('created_at', { ascending: false });
-  
-  const hasGoals = goals && goals.length > 0;
-  const hasTimes = times && times.length > 0;
-  const hasVideo = feedbacks && feedbacks.length > 0;
-  
-  if (!hasGoals || !hasTimes || !hasVideo) {
-    return res.json({ ready: false, missing: { goals: !hasGoals, times: !hasTimes, video: !hasVideo } });
+  if (!goals?.length || !times?.length || !feedbacks?.length) {
+    return res.json({ ready: false, missing: { goals: !goals?.length, times: !times?.length, video: !feedbacks?.length } });
   }
-  
-  const primaryGoal = goals[0];
-  const relevantTimes = times.filter(t => t.stroke === primaryGoal.stroke && t.distance === primaryGoal.distance);
+  const goal = goals[0];
+  const relevantTimes = times.filter(t => t.stroke === goal.stroke && t.distance === goal.distance);
   const bestTime = relevantTimes.length > 0 ? Math.min(...relevantTimes.map(t => t.time_seconds)) : null;
-  const avgTime = relevantTimes.length > 0 ? Math.round(relevantTimes.reduce((sum, t) => sum + t.time_seconds, 0) / relevantTimes.length) : null;
-  const gap = bestTime ? bestTime - primaryGoal.target_seconds : null;
-  const latestFeedback = feedbacks[0].feedback;
-  
-  const trainingFocus = generateTrainingFocus(latestFeedback, gap, primaryGoal.stroke);
-  const racePlan = generateRacePlan(primaryGoal, bestTime, avgTime, gap);
-  const warmupPlan = generateWarmupPlan(primaryGoal.stroke, primaryGoal.distance);
-  
-  res.json({
-    ready: true,
-    goal: primaryGoal,
-    performance: { bestTime, avgTime, gap, sessionsLogged: relevantTimes.length },
-    trainingFocus,
-    racePlan,
-    warmupPlan,
-    basedOn: { goalsCount: goals.length, timesCount: times.length, feedbackCount: feedbacks.length }
-  });
+  const gap = bestTime ? bestTime - goal.target_seconds : null;
+  const trainingFocus = generateTrainingFocus(feedbacks[0].feedback, gap, goal.stroke);
+  const racePlan = generateRacePlan(goal, bestTime, gap);
+  const warmupPlan = generateWarmupPlan(goal.stroke);
+  res.json({ ready: true, goal, performance: { bestTime, gap }, trainingFocus, racePlan, warmupPlan });
 });
 
 function generateTrainingFocus(feedback, gap, stroke) {
-  const focuses = [];
-  if (feedback.priority_focus) focuses.push(feedback.priority_focus);
-  if (gap !== null) {
-    if (gap > 5) { focuses.push('Increase training volume'); focuses.push('Focus on endurance'); }
-    else if (gap > 0) { focuses.push('Fine-tune technique'); focuses.push('Race pace intervals'); }
-    else { focuses.push('Maintain current form'); focuses.push('Work on consistency'); }
-  }
-  const strokeFocuses = { Freestyle: ['Streamline off walls', 'Breathing pattern'], Backstroke: ['Underwater kicks', 'Turn timing'], Breaststroke: ['Pullout efficiency', 'Kick timing'], Butterfly: ['Rhythm and tempo', 'Underwater phase'], IM: ['Transition efficiency', 'Pace distribution'] };
-  if (strokeFocuses[stroke]) focuses.push(strokeFocuses[stroke][Math.floor(Math.random() * 2)]);
+  const focuses = [feedback.priority_focus];
+  if (gap > 5) focuses.push('Increase training volume');
+  else if (gap > 0) focuses.push('Race pace intervals');
+  else focuses.push('Maintain form');
+  const strokeFocus = { Freestyle: 'Streamline off walls', Backstroke: 'Underwater kicks', Breaststroke: 'Pullout efficiency', Butterfly: 'Rhythm and tempo', IM: 'Transition efficiency' };
+  focuses.push(strokeFocus[stroke] || 'Technique drills');
   return focuses.slice(0, 4);
 }
 
-function generateRacePlan(goal, bestTime, avgTime, gap) {
-  const distance = goal.distance;
-  const targetTime = goal.target_seconds;
-  let strategy, splits, mentalCues;
-  if (distance === 50) {
-    strategy = 'Explosive start, maintain speed';
-    splits = [{ segment: 'Start to 25m', pace: 'Maximum effort', target: Math.round(targetTime * 0.48) + 's' }, { segment: '25m to finish', pace: 'Hold speed', target: Math.round(targetTime * 0.52) + 's' }];
-    mentalCues = ['Explosive off blocks', 'No breathing first 15m', 'Drive through wall'];
-  } else if (distance === 100) {
-    strategy = gap > 0 ? 'Conservative first 50, build second half' : 'Even splits';
-    splits = [{ segment: 'First 25m', pace: 'Fast but controlled', target: Math.round(targetTime * 0.24) + 's' }, { segment: '25-50m', pace: 'Settle into rhythm', target: Math.round(targetTime * 0.26) + 's' }, { segment: '50-75m', pace: 'Maintain form', target: Math.round(targetTime * 0.26) + 's' }, { segment: '75-100m', pace: 'Build to finish', target: Math.round(targetTime * 0.24) + 's' }];
-    mentalCues = ['Smooth first 50', 'Patience at turn', 'Accelerate final 25'];
-  } else {
-    strategy = 'Negative split - second half faster';
-    splits = [{ segment: 'First quarter', pace: 'Conservative', target: Math.round(targetTime * 0.26) + 's' }, { segment: 'Second quarter', pace: 'Build rhythm', target: Math.round(targetTime * 0.26) + 's' }, { segment: 'Third quarter', pace: 'Push pace', target: Math.round(targetTime * 0.25) + 's' }, { segment: 'Final quarter', pace: 'All out', target: Math.round(targetTime * 0.23) + 's' }];
-    mentalCues = ['Relax early', 'Midpoint check-in', 'Empty tank last quarter'];
-  }
-  return { strategy, splits, mentalCues, targetTime: formatTimeServer(targetTime) };
+function generateRacePlan(goal, bestTime, gap) {
+  const t = goal.target_seconds;
+  const strategy = gap > 0 ? 'Conservative start, build second half' : 'Even splits';
+  const splits = goal.distance === 50 
+    ? [{ segment: '0-25m', pace: 'Max effort', target: Math.round(t * 0.48) + 's' }, { segment: '25-50m', pace: 'Hold', target: Math.round(t * 0.52) + 's' }]
+    : [{ segment: 'First half', pace: 'Controlled', target: Math.round(t * 0.52) + 's' }, { segment: 'Second half', pace: 'Build', target: Math.round(t * 0.48) + 's' }];
+  return { strategy, splits, mentalCues: ['Stay relaxed', 'Trust training', 'Strong finish'], targetTime: formatTime(t) };
 }
 
-function generateWarmupPlan(stroke, distance) {
-  return {
-    totalDistance: '1000m',
-    timeNeeded: '20-25 minutes',
-    activities: [
-      { activity: 'Easy swim mix', distance: '400m', notes: 'Loosen up' },
-      { activity: `${stroke} drill`, distance: '200m', notes: 'Technique focus' },
-      { activity: 'Build swims', distance: '4x50m', notes: 'Increase effort' },
-      { activity: 'Race pace', distance: '2x25m', notes: 'Target speed' },
-      { activity: 'Easy swim', distance: '200m', notes: 'Recovery' }
-    ],
-    finalPrep: ['Stretch behind blocks', 'Visualize race', 'Practice starts']
-  };
+function generateWarmupPlan(stroke) {
+  return { totalDistance: '800m', timeNeeded: '15-20 min', activities: [{ activity: 'Easy mix', distance: '300m' }, { activity: `${stroke} drill`, distance: '200m' }, { activity: 'Build', distance: '4x50m' }, { activity: 'Easy', distance: '100m' }], finalPrep: ['Stretch', 'Visualize', 'Practice start'] };
 }
 
-function formatTimeServer(seconds) {
-  const min = Math.floor(seconds / 60);
-  const sec = seconds % 60;
-  return `${min}:${sec.toString().padStart(2, '0')}`;
-}
+function formatTime(s) { return `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, '0')}`; }
 
 function generateSwimFeedback(stroke) {
-  const templates = {
-    Freestyle: { body_position: ['Good horizontal alignment', 'Hips dropping slightly', 'Excellent streamlined position'][Math.floor(Math.random() * 3)], arm_technique: ['Strong catch phase', 'Early vertical forearm needs work', 'Good pull pattern'][Math.floor(Math.random() * 3)], kick: ['Consistent 6-beat kick', 'Kick from hips, not knees', 'Good ankle flexibility'][Math.floor(Math.random() * 3)], breathing: ['Bilateral breathing well executed', 'Head lifting too high', 'Good timing on breath'][Math.floor(Math.random() * 3)], overall_score: Math.floor(Math.random() * 3) + 7, priority_focus: ['Work on catch phase', 'Improve body rotation', 'Strengthen kick tempo'][Math.floor(Math.random() * 3)] },
-    Backstroke: { body_position: ['Good rotation', 'Keep head neutral', 'Hips riding high'][Math.floor(Math.random() * 3)], arm_technique: ['Pinky-first entry correct', 'Arm entry too wide', 'Good deep catch'][Math.floor(Math.random() * 3)], kick: ['Steady flutter kick', 'Knees breaking surface', 'Good propulsion'][Math.floor(Math.random() * 3)], timing: ['Arms synchronized', 'Pause at recovery', 'Smooth rhythm'][Math.floor(Math.random() * 3)], overall_score: Math.floor(Math.random() * 3) + 7, priority_focus: ['Focus on hip rotation', 'Improve arm entry', 'Work on kick depth'][Math.floor(Math.random() * 3)] },
-    Breaststroke: { body_position: ['Good undulation', 'Stay more horizontal', 'Head position needs work'][Math.floor(Math.random() * 3)], arm_technique: ['Strong outsweep', 'Elbows collapsing', 'Good insweep'][Math.floor(Math.random() * 3)], kick: ['Powerful whip kick', 'Knees too wide', 'Good ankle rotation'][Math.floor(Math.random() * 3)], timing: ['Good sequence', 'Rushing glide', 'Good timing'][Math.floor(Math.random() * 3)], overall_score: Math.floor(Math.random() * 3) + 7, priority_focus: ['Extend glide', 'Narrow knee recovery', 'Improve timing'][Math.floor(Math.random() * 3)] },
-    Butterfly: { body_position: ['Good undulation', 'Hips not driving', 'Excellent body wave'][Math.floor(Math.random() * 3)], arm_technique: ['Strong keyhole pull', 'Arms too narrow', 'Good recovery'][Math.floor(Math.random() * 3)], kick: ['Two kicks correct', 'Second kick weak', 'Powerful downbeat'][Math.floor(Math.random() * 3)], breathing: ['Low forward breath', 'Head too high', 'Good timing'][Math.floor(Math.random() * 3)], overall_score: Math.floor(Math.random() * 3) + 7, priority_focus: ['Strengthen second kick', 'Lower breathing', 'Improve hip drive'][Math.floor(Math.random() * 3)] },
-    IM: { transitions: ['Smooth transitions', 'Losing speed fly-to-back', 'Good underwater'][Math.floor(Math.random() * 3)], pacing: ['Well distributed', 'Going out too fast', 'Smart energy'][Math.floor(Math.random() * 3)], technique_consistency: ['All strokes sound', 'Breaststroke weakest', 'Strong freestyle'][Math.floor(Math.random() * 3)], overall_score: Math.floor(Math.random() * 3) + 7, priority_focus: ['Work on weakest stroke', 'Improve turns', 'Practice pacing'][Math.floor(Math.random() * 3)] }
+  const t = {
+    Freestyle: { body_position: 'Good alignment', arm_technique: 'Strong catch', kick: 'Consistent kick', breathing: 'Good timing', overall_score: 7 + Math.floor(Math.random() * 3), priority_focus: ['Catch phase', 'Body rotation', 'Kick tempo'][Math.floor(Math.random() * 3)] },
+    Backstroke: { body_position: 'Good rotation', arm_technique: 'Clean entry', kick: 'Steady kick', timing: 'Smooth rhythm', overall_score: 7 + Math.floor(Math.random() * 3), priority_focus: ['Hip rotation', 'Arm entry', 'Kick depth'][Math.floor(Math.random() * 3)] },
+    Breaststroke: { body_position: 'Good undulation', arm_technique: 'Strong outsweep', kick: 'Powerful whip', timing: 'Good sequence', overall_score: 7 + Math.floor(Math.random() * 3), priority_focus: ['Glide phase', 'Kick timing', 'Pullout'][Math.floor(Math.random() * 3)] },
+    Butterfly: { body_position: 'Good wave', arm_technique: 'Strong pull', kick: 'Two kicks correct', breathing: 'Low breath', overall_score: 7 + Math.floor(Math.random() * 3), priority_focus: ['Second kick', 'Hip drive', 'Breathing'][Math.floor(Math.random() * 3)] },
+    IM: { transitions: 'Smooth turns', pacing: 'Good distribution', technique_consistency: 'Solid all strokes', overall_score: 7 + Math.floor(Math.random() * 3), priority_focus: ['Weakest stroke', 'Turn speed', 'Pacing'][Math.floor(Math.random() * 3)] }
   };
-  return templates[stroke] || templates['Freestyle'];
+  return t[stroke] || t.Freestyle;
 }
 
-app.listen(PORT, () => {
-  console.log('\n🏊 SwiftLapLogic is running!');
-  console.log(`Open your browser: http://localhost:${PORT}\n`);
-});
+app.listen(PORT, () => console.log(`\n🏊 SwiftLapLogic running at http://localhost:${PORT}\n`));
