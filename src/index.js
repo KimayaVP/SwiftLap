@@ -12,59 +12,176 @@ const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANO
 app.use(express.static(path.join(__dirname, '../public')));
 app.use(express.json());
 
-// ========== ERROR LOGGING ==========
+// ========== BADGE DEFINITIONS ==========
+const BADGES = {
+  first_swim: { id: 'first_swim', name: 'First Splash', icon: '🏊', desc: 'Log your first time' },
+  five_sessions: { id: 'five_sessions', name: 'Getting Serious', icon: '💪', desc: 'Log 5 sessions' },
+  ten_sessions: { id: 'ten_sessions', name: 'Dedicated', icon: '🔥', desc: 'Log 10 sessions' },
+  twenty_five_sessions: { id: 'twenty_five_sessions', name: 'Machine', icon: '🤖', desc: 'Log 25 sessions' },
+  first_goal: { id: 'first_goal', name: 'Goal Setter', icon: '🎯', desc: 'Set your first goal' },
+  goal_crusher: { id: 'goal_crusher', name: 'Goal Crusher', icon: '🏆', desc: 'Achieve a goal' },
+  three_goals: { id: 'three_goals', name: 'Triple Threat', icon: '🥇', desc: 'Achieve 3 goals' },
+  first_video: { id: 'first_video', name: 'Camera Ready', icon: '🎥', desc: 'Upload first video' },
+  streak_3: { id: 'streak_3', name: 'On Fire', icon: '🔥', desc: '3-day streak' },
+  streak_7: { id: 'streak_7', name: 'Week Warrior', icon: '⚡', desc: '7-day streak' },
+  streak_14: { id: 'streak_14', name: 'Unstoppable', icon: '🚀', desc: '14-day streak' },
+  streak_30: { id: 'streak_30', name: 'Legend', icon: '👑', desc: '30-day streak' },
+  early_bird: { id: 'early_bird', name: 'Early Bird', icon: '🌅', desc: 'Log before 7am' },
+  night_owl: { id: 'night_owl', name: 'Night Owl', icon: '🦉', desc: 'Log after 9pm' },
+  all_strokes: { id: 'all_strokes', name: 'Versatile', icon: '🌊', desc: 'Log all 5 strokes' },
+  improvement_5: { id: 'improvement_5', name: 'Speeding Up', icon: '⏱️', desc: 'Improve by 5+ seconds' },
+  top_rank: { id: 'top_rank', name: 'Top Dog', icon: '🥇', desc: 'Reach #1 on leaderboard' }
+};
+
+// ========== ERROR & ANALYTICS ==========
 const logError = async (error, context = {}) => {
   console.error(`[ERROR] ${new Date().toISOString()}:`, error.message, context);
-  try {
-    await supabase.from('analytics').insert({
-      user_id: context.userId || null,
-      event_type: 'error',
-      event_data: { message: error.message, stack: error.stack, context }
-    });
-  } catch (e) { console.error('Failed to log error:', e); }
+  try { await supabase.from('analytics').insert({ user_id: context.userId || null, event_type: 'error', event_data: { message: error.message, context } }); } catch (e) {}
 };
 
-// ========== ANALYTICS ==========
 const trackEvent = async (userId, eventType, eventData = {}) => {
-  try {
-    await supabase.from('analytics').insert({ user_id: userId, event_type: eventType, event_data: eventData });
-  } catch (e) { console.error('Failed to track event:', e); }
+  try { await supabase.from('analytics').insert({ user_id: userId, event_type: eventType, event_data: eventData }); } catch (e) {}
 };
 
-app.post('/api/analytics/track', async (req, res) => {
-  const { userId, eventType, eventData } = req.body;
-  await trackEvent(userId, eventType, eventData);
-  res.json({ success: true });
-});
+// ========== ACHIEVEMENT SYSTEM ==========
+async function checkAndAwardBadges(swimmerId) {
+  const newBadges = [];
+  const { data: existing } = await supabase.from('achievements').select('badge_id').eq('swimmer_id', swimmerId);
+  const earned = new Set((existing || []).map(a => a.badge_id));
+  
+  const { data: times } = await supabase.from('swim_times').select('*').eq('swimmer_id', swimmerId);
+  const { data: goals } = await supabase.from('goals').select('*').eq('swimmer_id', swimmerId);
+  const { data: videos } = await supabase.from('video_feedback').select('*').eq('swimmer_id', swimmerId);
+  const { data: streak } = await supabase.from('streaks').select('*').eq('swimmer_id', swimmerId).single();
+  
+  const timeCount = times?.length || 0;
+  const goalCount = goals?.length || 0;
+  const videoCount = videos?.length || 0;
+  const currentStreak = streak?.current_streak || 0;
+  
+  // Session badges
+  if (timeCount >= 1 && !earned.has('first_swim')) newBadges.push('first_swim');
+  if (timeCount >= 5 && !earned.has('five_sessions')) newBadges.push('five_sessions');
+  if (timeCount >= 10 && !earned.has('ten_sessions')) newBadges.push('ten_sessions');
+  if (timeCount >= 25 && !earned.has('twenty_five_sessions')) newBadges.push('twenty_five_sessions');
+  
+  // Goal badges
+  if (goalCount >= 1 && !earned.has('first_goal')) newBadges.push('first_goal');
+  
+  // Check goal achievements
+  let goalsAchieved = 0;
+  for (const goal of (goals || [])) {
+    const relevantTimes = (times || []).filter(t => t.stroke === goal.stroke && t.distance === goal.distance);
+    if (relevantTimes.length > 0) {
+      const best = Math.min(...relevantTimes.map(t => t.time_seconds));
+      if (best <= goal.target_seconds) goalsAchieved++;
+    }
+  }
+  if (goalsAchieved >= 1 && !earned.has('goal_crusher')) newBadges.push('goal_crusher');
+  if (goalsAchieved >= 3 && !earned.has('three_goals')) newBadges.push('three_goals');
+  
+  // Video badge
+  if (videoCount >= 1 && !earned.has('first_video')) newBadges.push('first_video');
+  
+  // Streak badges
+  if (currentStreak >= 3 && !earned.has('streak_3')) newBadges.push('streak_3');
+  if (currentStreak >= 7 && !earned.has('streak_7')) newBadges.push('streak_7');
+  if (currentStreak >= 14 && !earned.has('streak_14')) newBadges.push('streak_14');
+  if (currentStreak >= 30 && !earned.has('streak_30')) newBadges.push('streak_30');
+  
+  // All strokes badge
+  const strokes = new Set((times || []).map(t => t.stroke));
+  if (strokes.size >= 5 && !earned.has('all_strokes')) newBadges.push('all_strokes');
+  
+  // Improvement badge
+  const strokeDistances = {};
+  (times || []).forEach(t => {
+    const key = `${t.stroke}-${t.distance}`;
+    if (!strokeDistances[key]) strokeDistances[key] = [];
+    strokeDistances[key].push({ time: t.time_seconds, date: t.created_at });
+  });
+  for (const [key, entries] of Object.entries(strokeDistances)) {
+    if (entries.length >= 2) {
+      entries.sort((a, b) => new Date(a.date) - new Date(b.date));
+      const first = entries[0].time;
+      const best = Math.min(...entries.map(e => e.time));
+      if (first - best >= 5 && !earned.has('improvement_5')) newBadges.push('improvement_5');
+    }
+  }
+  
+  // Award new badges
+  for (const badgeId of newBadges) {
+    await supabase.from('achievements').insert({ swimmer_id: swimmerId, badge_id: badgeId });
+    await trackEvent(swimmerId, 'badge_earned', { badge: badgeId });
+  }
+  
+  return newBadges.map(id => BADGES[id]);
+}
 
-app.get('/api/analytics/summary', async (req, res) => {
+async function updateStreak(swimmerId) {
+  const today = new Date().toISOString().split('T')[0];
+  const { data: streak } = await supabase.from('streaks').select('*').eq('swimmer_id', swimmerId).single();
+  
+  if (!streak) {
+    await supabase.from('streaks').insert({ swimmer_id: swimmerId, current_streak: 1, longest_streak: 1, last_activity_date: today });
+    return { current: 1, longest: 1, isNew: true };
+  }
+  
+  const lastDate = streak.last_activity_date;
+  if (lastDate === today) return { current: streak.current_streak, longest: streak.longest_streak, isNew: false };
+  
+  const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+  let newStreak = lastDate === yesterday ? streak.current_streak + 1 : 1;
+  let longest = Math.max(streak.longest_streak, newStreak);
+  
+  await supabase.from('streaks').update({ current_streak: newStreak, longest_streak: longest, last_activity_date: today }).eq('swimmer_id', swimmerId);
+  
+  return { current: newStreak, longest, isNew: true };
+}
+
+// ========== WEEKLY CHALLENGES ==========
+function getWeeklyChallenge() {
+  const challenges = [
+    { id: 'log_5', name: 'Consistency Week', desc: 'Log 5 sessions this week', target: 5, type: 'sessions' },
+    { id: 'improve_2', name: 'Speed Demon', desc: 'Improve any time by 2+ seconds', target: 2, type: 'improvement' },
+    { id: 'all_strokes', name: 'Stroke Explorer', desc: 'Log at least 3 different strokes', target: 3, type: 'strokes' },
+    { id: 'volume_3000', name: 'Distance Challenge', desc: 'Log 3000m+ total this week', target: 3000, type: 'distance' }
+  ];
+  const weekNum = Math.floor(Date.now() / (7 * 24 * 60 * 60 * 1000));
+  return challenges[weekNum % challenges.length];
+}
+
+async function checkChallengeProgress(swimmerId) {
+  const challenge = getWeeklyChallenge();
+  const weekStart = getWeekStart(new Date());
+  const { data: times } = await supabase.from('swim_times').select('*').eq('swimmer_id', swimmerId).gte('date', weekStart);
+  
+  let progress = 0;
+  if (challenge.type === 'sessions') progress = times?.length || 0;
+  else if (challenge.type === 'strokes') progress = new Set((times || []).map(t => t.stroke)).size;
+  else if (challenge.type === 'distance') progress = (times || []).reduce((sum, t) => sum + t.distance, 0);
+  
+  return { ...challenge, progress, completed: progress >= challenge.target };
+}
+
+// ========== ACHIEVEMENTS API ==========
+app.get('/api/achievements/:swimmerId', async (req, res) => {
   try {
-    const { data: events } = await supabase.from('analytics').select('*').order('created_at', { ascending: false }).limit(100);
+    const swimmerId = req.params.swimmerId;
+    const { data: achievements } = await supabase.from('achievements').select('*').eq('swimmer_id', swimmerId).order('unlocked_at', { ascending: false });
+    const { data: streak } = await supabase.from('streaks').select('*').eq('swimmer_id', swimmerId).single();
+    const challenge = await checkChallengeProgress(swimmerId);
     
-    const summary = {
-      totalEvents: events?.length || 0,
-      byType: {},
-      recentErrors: [],
-      userActivity: {}
-    };
+    const earnedBadges = (achievements || []).map(a => ({ ...BADGES[a.badge_id], unlocked_at: a.unlocked_at }));
+    const allBadges = Object.values(BADGES).map(b => ({ ...b, earned: earnedBadges.some(e => e.id === b.id) }));
     
-    (events || []).forEach(e => {
-      summary.byType[e.event_type] = (summary.byType[e.event_type] || 0) + 1;
-      if (e.event_type === 'error') summary.recentErrors.push(e);
-      if (e.user_id) summary.userActivity[e.user_id] = (summary.userActivity[e.user_id] || 0) + 1;
+    res.json({
+      earned: earnedBadges,
+      all: allBadges,
+      streak: streak || { current_streak: 0, longest_streak: 0 },
+      challenge
     });
-    
-    res.json(summary);
-  } catch (e) { res.status(500).json({ error: e.message }); }
-});
-
-app.get('/api/analytics/leaderboard-engagement', async (req, res) => {
-  try {
-    const { data } = await supabase.from('analytics').select('*').eq('event_type', 'leaderboard_view');
-    const views = data?.length || 0;
-    const uniqueUsers = new Set((data || []).map(e => e.user_id)).size;
-    res.json({ totalViews: views, uniqueUsers, avgViewsPerUser: uniqueUsers ? (views / uniqueUsers).toFixed(1) : 0 });
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { await logError(e, { route: 'achievements' }); res.status(500).json({ error: e.message }); }
 });
 
 // ========== VALIDATION ==========
@@ -111,6 +228,21 @@ app.post('/api/auth/login', async (req, res) => {
   } catch (e) { await logError(e, { route: 'login' }); res.status(500).json({ error: e.message }); }
 });
 
+app.post('/api/analytics/track', async (req, res) => {
+  const { userId, eventType, eventData } = req.body;
+  await trackEvent(userId, eventType, eventData);
+  res.json({ success: true });
+});
+
+app.get('/api/analytics/summary', async (req, res) => {
+  try {
+    const { data: events } = await supabase.from('analytics').select('*').order('created_at', { ascending: false }).limit(100);
+    const summary = { totalEvents: events?.length || 0, byType: {}, recentErrors: [] };
+    (events || []).forEach(e => { summary.byType[e.event_type] = (summary.byType[e.event_type] || 0) + 1; });
+    res.json(summary);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 // ========== COACH ==========
 app.post('/api/coach/add-swimmer', async (req, res) => {
   try {
@@ -129,7 +261,7 @@ app.get('/api/coach/swimmers/:coachId', async (req, res) => {
     const { data, error } = await supabase.from('profiles').select('*').eq('coach_id', req.params.coachId);
     if (error) return res.status(400).json({ error: error.message });
     res.json({ swimmers: data });
-  } catch (e) { await logError(e, { route: 'coach-swimmers' }); res.status(500).json({ error: e.message }); }
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.get('/api/coach/dashboard/:coachId', async (req, res) => {
@@ -142,14 +274,17 @@ app.get('/api/coach/dashboard/:coachId', async (req, res) => {
     const ids = swimmers.map(s => s.id);
     const { data: goals } = await supabase.from('goals').select('*').in('swimmer_id', ids).eq('month', month);
     const { data: times } = await supabase.from('swim_times').select('*').in('swimmer_id', ids).gte('date', startOfMonth);
-    const { data: feedbacks } = await supabase.from('video_feedback').select('*').in('swimmer_id', ids).order('created_at', { ascending: false });
     const { data: plans } = await supabase.from('training_plans').select('*').in('swimmer_id', ids).order('created_at', { ascending: false });
+    const { data: streaks } = await supabase.from('streaks').select('*').in('swimmer_id', ids);
+    const { data: achievements } = await supabase.from('achievements').select('*').in('swimmer_id', ids);
+    
     const swimmerData = swimmers.map(s => {
       const sg = (goals || []).filter(g => g.swimmer_id === s.id);
       const st = (times || []).filter(t => t.swimmer_id === s.id);
-      const sf = (feedbacks || []).find(f => f.swimmer_id === s.id);
       const sp = (plans || []).find(p => p.swimmer_id === s.id);
-      let status = 'no_goals', goalsAhead = 0, goalsBehind = 0, improvement = 0;
+      const ss = (streaks || []).find(x => x.swimmer_id === s.id);
+      const sa = (achievements || []).filter(a => a.swimmer_id === s.id);
+      let status = 'no_goals', goalsAhead = 0, goalsBehind = 0;
       sg.forEach(g => {
         const rt = st.filter(t => t.stroke === g.stroke && t.distance === g.distance);
         if (rt.length) {
@@ -158,10 +293,10 @@ app.get('/api/coach/dashboard/:coachId', async (req, res) => {
         }
       });
       if (sg.length) status = goalsBehind > 0 ? 'behind' : 'ahead';
-      return { ...s, goalsCount: sg.length, goalsAhead, goalsBehind, sessionsThisMonth: st.length, status, improvement, latestFeedback: sf || null, currentPlan: sp || null };
+      return { ...s, goalsCount: sg.length, goalsAhead, goalsBehind, sessionsThisMonth: st.length, status, currentPlan: sp || null, streak: ss?.current_streak || 0, badges: sa.length };
     });
     const summary = { total: swimmers.length, ahead: swimmerData.filter(s => s.status === 'ahead').length, behind: swimmerData.filter(s => s.status === 'behind').length, noGoals: swimmerData.filter(s => s.status === 'no_goals').length };
-    await trackEvent(coachId, 'dashboard_view', { swimmerCount: swimmers.length });
+    await trackEvent(coachId, 'dashboard_view', {});
     res.json({ swimmers: swimmerData, summary });
   } catch (e) { await logError(e, { route: 'coach-dashboard' }); res.status(500).json({ error: e.message }); }
 });
@@ -204,6 +339,15 @@ app.get('/api/leaderboard/:coachId', async (req, res) => {
     lb.sort((a, b) => b.compositeScore - a.compositeScore);
     const top = lb[0]?.compositeScore || 0;
     lb.forEach((s, i) => { s.rank = i + 1; s.deltaFromTop = Math.round((top - s.compositeScore) * 10) / 10; });
+    
+    // Check for #1 badge
+    if (lb.length > 0 && lb[0].id) {
+      const { data: existing } = await supabase.from('achievements').select('*').eq('swimmer_id', lb[0].id).eq('badge_id', 'top_rank');
+      if (!existing?.length) {
+        await supabase.from('achievements').insert({ swimmer_id: lb[0].id, badge_id: 'top_rank' });
+      }
+    }
+    
     res.json({ leaderboard: lb, enabled: true });
   } catch (e) { await logError(e, { route: 'leaderboard' }); res.status(500).json({ error: e.message }); }
 });
@@ -281,7 +425,7 @@ app.get('/api/training-plan/:swimmerId', async (req, res) => {
     const currentData = { goalGap, goalStroke: goal.stroke, goalDistance: goal.distance, consistency: consistencyScore, bestTime };
     if (existingPlan) {
       const old = existingPlan.generated_from || {};
-      const shouldRegen = !old.goalStroke || old.goalStroke !== goal.stroke || old.goalDistance !== goal.distance || Math.abs((old.goalGap || 0) - goalGap) > 3 || Math.abs((old.consistency || 0) - consistencyScore) > 20;
+      const shouldRegen = !old.goalStroke || old.goalStroke !== goal.stroke || old.goalDistance !== goal.distance || Math.abs((old.goalGap || 0) - goalGap) > 3;
       if (!shouldRegen) {
         await trackEvent(swimmerId, 'training_plan_view', { regenerated: false });
         return res.json({ ready: true, plan: existingPlan.plan, regenerated: false, weekStart });
@@ -308,44 +452,34 @@ function generatePlan(goal, feedback, goalGap, consistency, bestTime) {
   const stroke = goal.stroke;
   const distance = goal.distance;
   const focus = feedback?.feedback?.priority_focus || 'technique';
-  let intensity, intensityDesc;
-  if (goalGap > 10) { intensity = 'high'; intensityDesc = 'Far from goal'; }
-  else if (goalGap > 5) { intensity = 'high'; intensityDesc = 'Building toward goal'; }
-  else if (goalGap > 0) { intensity = 'moderate'; intensityDesc = 'Close to goal'; }
-  else { intensity = 'maintenance'; intensityDesc = 'Goal achieved'; }
+  let intensity = goalGap > 5 ? 'high' : goalGap > 0 ? 'moderate' : 'maintenance';
   const focusAreas = [focus];
-  if (goalGap > 10) focusAreas.push('Endurance', 'Volume');
-  else if (goalGap > 5) focusAreas.push('Race pace', 'Threshold');
+  if (goalGap > 5) focusAreas.push('Race pace', 'Threshold');
   else if (goalGap > 0) focusAreas.push('Speed', 'Race simulation');
   else focusAreas.push('Technique', 'Consistency');
   const workouts = generateDistanceWorkouts(stroke, distance, goalGap, focus, intensity);
   const tips = [];
-  if (goalGap > 10) tips.push(`${goalGap}s from goal - focus on volume`);
-  else if (goalGap > 5) tips.push(`${goalGap}s to go - push race pace`);
+  if (goalGap > 5) tips.push(`${goalGap}s to go - push hard`);
   else if (goalGap > 0) tips.push(`Only ${goalGap}s away!`);
   else tips.push('Goal achieved! Maintain form');
   if (bestTime) tips.push(`Best: ${formatTime(bestTime)} → Target: ${formatTime(goal.target_seconds)}`);
-  return { weekFocus: `${stroke} ${distance}m - ${intensity}`, focusAreas: focusAreas.slice(0, 4), intensity, intensityDesc, goalGap: goalGap > 0 ? `${goalGap}s to drop` : 'Goal achieved!', workouts, totalWeeklyDistance: workouts.reduce((a, w) => a + parseInt(w.totalDistance), 0) + 'm', sessionsPerWeek: workouts.length, tips, adaptedFrom: { goalGap, focus, consistency, bestTime, targetTime: goal.target_seconds } };
+  return { weekFocus: `${stroke} ${distance}m - ${intensity}`, focusAreas: focusAreas.slice(0, 4), intensity, goalGap: goalGap > 0 ? `${goalGap}s to drop` : 'Goal achieved!', workouts, totalWeeklyDistance: workouts.reduce((a, w) => a + parseInt(w.totalDistance), 0) + 'm', sessionsPerWeek: workouts.length, tips };
 }
 
 function generateDistanceWorkouts(stroke, distance, goalGap, focus, intensity) {
   const workouts = [];
   if (distance === 50) {
-    workouts.push({ day: 'Monday', type: 'Power', warmup: '300m easy', main: [{ set: `12x25m ${stroke} FAST`, rest: '30s', focus: 'Speed' }, { set: '8x15m sprint', rest: '45s', focus: 'Starts' }], cooldown: '200m easy', totalDistance: '1100m', focus: 'Sprint power' });
-    workouts.push({ day: 'Wednesday', type: 'Speed Endurance', warmup: '400m drill', main: [{ set: `6x50m ${stroke} descend`, rest: '40s', focus: 'Build' }, { set: `8x25m ${stroke} drill`, rest: '20s', focus }], cooldown: '200m easy', totalDistance: '1200m', focus: 'Speed + technique' });
-    workouts.push({ day: 'Friday', type: 'Race Sim', warmup: '300m warmup', main: [{ set: `6x50m ${stroke} race pace`, rest: '2min', focus: 'Goal time' }, { set: `2x50m ALL OUT`, rest: '3min', focus: 'Time trial' }], cooldown: '200m easy', totalDistance: '1000m', focus: 'Race prep' });
+    workouts.push({ day: 'Monday', type: 'Power', warmup: '300m easy', main: [{ set: `12x25m ${stroke} FAST`, rest: '30s', focus: 'Speed' }], cooldown: '200m easy', totalDistance: '1100m', focus: 'Sprint' });
+    workouts.push({ day: 'Wednesday', type: 'Speed', warmup: '400m drill', main: [{ set: `6x50m ${stroke} descend`, rest: '40s', focus: 'Build' }], cooldown: '200m easy', totalDistance: '1000m', focus: 'Speed' });
+    workouts.push({ day: 'Friday', type: 'Race', warmup: '300m', main: [{ set: `6x50m ${stroke} race pace`, rest: '2min', focus: 'Goal' }], cooldown: '200m easy', totalDistance: '800m', focus: 'Race' });
   } else if (distance === 100) {
-    workouts.push({ day: 'Monday', type: 'Speed & Turns', warmup: '400m easy', main: [{ set: `8x50m ${stroke} fast`, rest: '30s', focus: 'Speed' }, { set: '8x25m turns', rest: '20s', focus: 'Turns' }], cooldown: '200m easy', totalDistance: '1400m', focus: 'Speed' });
-    workouts.push({ day: 'Wednesday', type: 'Threshold', warmup: '300m drill', main: [{ set: `6x100m ${stroke} threshold`, rest: '20s', focus: 'Aerobic' }, { set: `4x75m descend`, rest: '30s', focus: 'Build' }], cooldown: '200m easy', totalDistance: '1600m', focus: 'Threshold' });
-    workouts.push({ day: 'Friday', type: 'Race Pace', warmup: '400m warmup', main: [{ set: `3x100m ${stroke} goal pace`, rest: '2min', focus: 'Target' }, { set: `2x100m TIME TRIAL`, rest: '3min', focus: 'Race sim' }], cooldown: '200m easy', totalDistance: '1300m', focus: 'Race' });
+    workouts.push({ day: 'Monday', type: 'Speed', warmup: '400m easy', main: [{ set: `8x50m ${stroke} fast`, rest: '30s', focus: 'Speed' }], cooldown: '200m easy', totalDistance: '1000m', focus: 'Speed' });
+    workouts.push({ day: 'Wednesday', type: 'Threshold', warmup: '300m', main: [{ set: `6x100m ${stroke}`, rest: '20s', focus: 'Aerobic' }], cooldown: '200m easy', totalDistance: '1100m', focus: 'Threshold' });
+    workouts.push({ day: 'Friday', type: 'Race', warmup: '400m', main: [{ set: `3x100m ${stroke} goal pace`, rest: '2min', focus: 'Target' }], cooldown: '200m easy', totalDistance: '900m', focus: 'Race' });
   } else {
-    const reps = distance === 200 ? 4 : 3;
-    workouts.push({ day: 'Monday', type: 'Endurance', warmup: '500m easy', main: [{ set: `${reps}x${distance}m ${stroke}`, rest: '30s', focus: 'Aerobic' }, { set: '4x100m kick', rest: '20s', focus: 'Legs' }], cooldown: '300m easy', totalDistance: `${(reps * distance) + 1200}m`, focus: 'Endurance' });
-    workouts.push({ day: 'Wednesday', type: 'Pacing', warmup: '400m drill', main: [{ set: `${reps + 2}x${distance / 2}m negative split`, rest: '25s', focus: 'Pacing' }, { set: '4x50m FAST', rest: '30s', focus: 'Speed' }], cooldown: '300m easy', totalDistance: `${((reps + 2) * distance / 2) + 900}m`, focus: 'Negative split' });
-    workouts.push({ day: 'Friday', type: 'Race Pace', warmup: '500m warmup', main: [{ set: `2x${distance}m goal pace`, rest: '3min', focus: 'Race sim' }, { set: `1x${distance}m TIME TRIAL`, rest: '-', focus: 'Full effort' }], cooldown: '300m easy', totalDistance: `${3 * distance + 800}m`, focus: 'Race' });
-  }
-  if (intensity === 'high') {
-    workouts.push({ day: 'Saturday', type: 'Technique', warmup: '300m easy', main: [{ set: `10x50m ${stroke} drill`, rest: '20s', focus }], cooldown: '200m easy', totalDistance: '1000m', focus: 'Technical' });
+    workouts.push({ day: 'Monday', type: 'Endurance', warmup: '500m', main: [{ set: `4x${distance}m ${stroke}`, rest: '30s', focus: 'Aerobic' }], cooldown: '300m easy', totalDistance: `${4 * distance + 800}m`, focus: 'Endurance' });
+    workouts.push({ day: 'Wednesday', type: 'Pacing', warmup: '400m', main: [{ set: `6x${distance / 2}m negative split`, rest: '25s', focus: 'Pacing' }], cooldown: '300m easy', totalDistance: `${3 * distance + 700}m`, focus: 'Pacing' });
+    workouts.push({ day: 'Friday', type: 'Race', warmup: '500m', main: [{ set: `2x${distance}m goal pace`, rest: '3min', focus: 'Race sim' }], cooldown: '300m easy', totalDistance: `${2 * distance + 800}m`, focus: 'Race' });
   }
   return workouts;
 }
@@ -363,8 +497,13 @@ app.post('/api/times', async (req, res) => {
     if (ex?.length) return res.status(400).json({ error: 'Duplicate' });
     const { data, error } = await supabase.from('swim_times').insert({ swimmer_id: swimmerId, stroke, distance: parseInt(distance), time_seconds: v.totalSeconds }).select().single();
     if (error) return res.status(400).json({ error: error.message });
+    
+    // Update streak and check badges
+    const streakResult = await updateStreak(swimmerId);
+    const newBadges = await checkAndAwardBadges(swimmerId);
+    
     await trackEvent(swimmerId, 'time_logged', { stroke, distance, time: v.totalSeconds });
-    res.json({ success: true, time: data });
+    res.json({ success: true, time: data, streak: streakResult, newBadges });
   } catch (e) { await logError(e, { route: 'times-post' }); res.status(500).json({ error: e.message }); }
 });
 
@@ -373,7 +512,7 @@ app.get('/api/times/:swimmerId', async (req, res) => {
     const { data, error } = await supabase.from('swim_times').select('*').eq('swimmer_id', req.params.swimmerId).order('created_at', { ascending: false });
     if (error) return res.status(400).json({ error: error.message });
     res.json({ times: data });
-  } catch (e) { await logError(e, { route: 'times-get' }); res.status(500).json({ error: e.message }); }
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 // ========== GOALS ==========
@@ -387,8 +526,10 @@ app.post('/api/goals', async (req, res) => {
     if (ex) ({ data, error } = await supabase.from('goals').update({ target_seconds: target }).eq('id', ex.id).select().single());
     else ({ data, error } = await supabase.from('goals').insert({ swimmer_id: swimmerId, stroke, distance, target_seconds: target, month }).select().single());
     if (error) return res.status(400).json({ error: error.message });
+    
+    const newBadges = await checkAndAwardBadges(swimmerId);
     await trackEvent(swimmerId, 'goal_set', { stroke, distance, target });
-    res.json({ success: true, goal: data });
+    res.json({ success: true, goal: data, newBadges });
   } catch (e) { await logError(e, { route: 'goals-post' }); res.status(500).json({ error: e.message }); }
 });
 
@@ -397,7 +538,7 @@ app.get('/api/goals/:swimmerId', async (req, res) => {
     const { data, error } = await supabase.from('goals').select('*').eq('swimmer_id', req.params.swimmerId).eq('month', new Date().toISOString().slice(0, 7)).order('created_at', { ascending: false });
     if (error) return res.status(400).json({ error: error.message });
     res.json({ goals: data });
-  } catch (e) { await logError(e, { route: 'goals-get' }); res.status(500).json({ error: e.message }); }
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.get('/api/progress/:swimmerId', async (req, res) => {
@@ -412,7 +553,7 @@ app.get('/api/progress/:swimmerId', async (req, res) => {
       return { goal: g, sessionsLogged: rt.length, bestTime: best, status, gap: best ? best - g.target_seconds : null };
     });
     res.json({ progress, times: times || [] });
-  } catch (e) { await logError(e, { route: 'progress' }); res.status(500).json({ error: e.message }); }
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 // ========== VIDEO ==========
@@ -427,8 +568,10 @@ app.post('/api/video/upload', upload.single('video'), async (req, res) => {
     const feedback = genFeedback(stroke);
     const { data, error } = await supabase.from('video_feedback').insert({ swimmer_id: swimmerId, video_url: publicUrl, stroke, feedback }).select().single();
     if (error) return res.status(400).json({ error: error.message });
+    
+    const newBadges = await checkAndAwardBadges(swimmerId);
     await trackEvent(swimmerId, 'video_uploaded', { stroke });
-    res.json({ success: true, feedback: data });
+    res.json({ success: true, feedback: data, newBadges });
   } catch (e) { await logError(e, { route: 'video-upload' }); res.status(500).json({ error: e.message }); }
 });
 
@@ -437,7 +580,7 @@ app.get('/api/video/feedback/:swimmerId', async (req, res) => {
     const { data, error } = await supabase.from('video_feedback').select('*').eq('swimmer_id', req.params.swimmerId).order('created_at', { ascending: false });
     if (error) return res.status(400).json({ error: error.message });
     res.json({ feedbacks: data });
-  } catch (e) { await logError(e, { route: 'video-feedback' }); res.status(500).json({ error: e.message }); }
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.get('/api/race-plan/:swimmerId', async (req, res) => {
@@ -451,17 +594,17 @@ app.get('/api/race-plan/:swimmerId', async (req, res) => {
     const rt = times.filter(t => t.stroke === g.stroke && t.distance === g.distance);
     const best = rt.length ? Math.min(...rt.map(t => t.time_seconds)) : null;
     const gap = best ? best - g.target_seconds : null;
-    res.json({ ready: true, goal: g, performance: { bestTime: best, gap }, trainingFocus: [feedbacks[0].feedback.priority_focus, gap > 5 ? 'Volume' : 'Race pace'], racePlan: { strategy: gap > 0 ? 'Conservative start' : 'Even splits', splits: [{ segment: 'First half', target: Math.round(g.target_seconds * 0.52) + 's' }, { segment: 'Second half', target: Math.round(g.target_seconds * 0.48) + 's' }], mentalCues: ['Stay relaxed', 'Strong finish'], targetTime: formatTime(g.target_seconds) } });
-  } catch (e) { await logError(e, { route: 'race-plan' }); res.status(500).json({ error: e.message }); }
+    res.json({ ready: true, goal: g, performance: { bestTime: best, gap }, trainingFocus: [feedbacks[0].feedback.priority_focus, gap > 5 ? 'Volume' : 'Race pace'], racePlan: { strategy: gap > 0 ? 'Conservative' : 'Even', splits: [{ segment: 'First half', target: Math.round(g.target_seconds * 0.52) + 's' }, { segment: 'Second half', target: Math.round(g.target_seconds * 0.48) + 's' }], targetTime: formatTime(g.target_seconds) } });
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 function genFeedback(stroke) {
   const t = {
-    Freestyle: { body_position: 'Good', arm_technique: 'Strong catch', kick: 'Consistent', breathing: 'Good timing', overall_score: 7 + Math.floor(Math.random() * 3), priority_focus: ['Catch', 'Rotation', 'Kick'][Math.floor(Math.random() * 3)] },
-    Backstroke: { body_position: 'Good rotation', arm_technique: 'Clean', kick: 'Steady', timing: 'Smooth', overall_score: 7 + Math.floor(Math.random() * 3), priority_focus: ['Hip rotation', 'Arm entry', 'Kick'][Math.floor(Math.random() * 3)] },
-    Breaststroke: { body_position: 'Good undulation', arm_technique: 'Strong', kick: 'Powerful', timing: 'Good', overall_score: 7 + Math.floor(Math.random() * 3), priority_focus: ['Glide', 'Kick timing', 'Pullout'][Math.floor(Math.random() * 3)] },
-    Butterfly: { body_position: 'Good wave', arm_technique: 'Strong', kick: 'Two kicks', breathing: 'Low', overall_score: 7 + Math.floor(Math.random() * 3), priority_focus: ['Second kick', 'Hip drive', 'Breathing'][Math.floor(Math.random() * 3)] },
-    IM: { transitions: 'Smooth', pacing: 'Good', technique_consistency: 'Solid', overall_score: 7 + Math.floor(Math.random() * 3), priority_focus: ['Weakest stroke', 'Turns', 'Pacing'][Math.floor(Math.random() * 3)] }
+    Freestyle: { body_position: 'Good', arm_technique: 'Strong', kick: 'Consistent', overall_score: 7 + Math.floor(Math.random() * 3), priority_focus: ['Catch', 'Rotation', 'Kick'][Math.floor(Math.random() * 3)] },
+    Backstroke: { body_position: 'Good', arm_technique: 'Clean', kick: 'Steady', overall_score: 7 + Math.floor(Math.random() * 3), priority_focus: ['Hip rotation', 'Entry', 'Kick'][Math.floor(Math.random() * 3)] },
+    Breaststroke: { body_position: 'Good', arm_technique: 'Strong', kick: 'Powerful', overall_score: 7 + Math.floor(Math.random() * 3), priority_focus: ['Glide', 'Timing', 'Pullout'][Math.floor(Math.random() * 3)] },
+    Butterfly: { body_position: 'Good', arm_technique: 'Strong', kick: 'Two kicks', overall_score: 7 + Math.floor(Math.random() * 3), priority_focus: ['Second kick', 'Hip drive', 'Breathing'][Math.floor(Math.random() * 3)] },
+    IM: { transitions: 'Smooth', pacing: 'Good', overall_score: 7 + Math.floor(Math.random() * 3), priority_focus: ['Turns', 'Pacing', 'Weakest stroke'][Math.floor(Math.random() * 3)] }
   };
   return t[stroke] || t.Freestyle;
 }
