@@ -53,20 +53,17 @@
     .upload-area { border: 2px dashed rgba(255,255,255,0.2); border-radius: 10px; padding: 30px; text-align: center; cursor: pointer; }
     .upload-area:hover { border-color: #0ea5e9; }
     .upload-area input { display: none; }
-    .upload-icon { font-size: 2rem; margin-bottom: 10px; }
-    .upload-text { color: #94a3b8; font-size: 0.85rem; }
     .file-selected { color: #22c55e; font-size: 0.85rem; margin-top: 8px; }
     .feedback-card { background: rgba(139, 92, 246, 0.1); border: 1px solid rgba(139, 92, 246, 0.3); border-radius: 12px; padding: 16px; margin-bottom: 12px; }
     .feedback-card h4 { color: #a78bfa; margin-bottom: 12px; font-size: 0.95rem; }
     .feedback-item { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.05); }
     .feedback-item:last-child { border-bottom: none; }
-    .feedback-label { color: #94a3b8; font-size: 0.8rem; text-transform: capitalize; }
-    .feedback-value { color: white; font-size: 0.85rem; text-align: right; max-width: 60%; }
+    .feedback-label { color: #94a3b8; font-size: 0.8rem; }
+    .feedback-value { color: white; font-size: 0.85rem; max-width: 60%; text-align: right; }
     .feedback-score { display: flex; align-items: center; gap: 8px; margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.1); }
-    .score-badge { background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%); padding: 6px 14px; border-radius: 20px; font-weight: 700; font-size: 1rem; }
+    .score-badge { background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%); padding: 6px 14px; border-radius: 20px; font-weight: 700; }
     .priority-box { background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); padding: 10px; border-radius: 8px; margin-top: 12px; }
     .priority-box label { color: #ef4444; font-size: 0.75rem; display: block; margin-bottom: 4px; }
-    .priority-box p { color: white; font-size: 0.85rem; }
     .processing { text-align: center; padding: 30px; }
     .spinner { width: 40px; height: 40px; border: 3px solid rgba(255,255,255,0.1); border-top-color: #0ea5e9; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 16px; }
     @keyframes spin { to { transform: rotate(360deg); } }
@@ -92,56 +89,79 @@
     .most-improved-banner h4 { color: #a78bfa; font-size: 0.85rem; margin-bottom: 4px; }
     .most-improved-banner .name { font-size: 1.2rem; font-weight: 700; }
     .most-improved-banner .improvement { color: #22c55e; font-size: 0.9rem; margin-top: 4px; }
-    
-    /* Race Plan Styles */
     .race-plan-header { background: linear-gradient(135deg, rgba(245, 158, 11, 0.2) 0%, rgba(234, 88, 12, 0.2) 100%); border: 1px solid rgba(245, 158, 11, 0.4); border-radius: 12px; padding: 20px; margin-bottom: 16px; text-align: center; }
     .race-plan-header .icon { font-size: 2.5rem; margin-bottom: 10px; }
     .race-plan-header h3 { color: #fbbf24; font-size: 1.1rem; margin-bottom: 4px; }
     .race-plan-header .event { font-size: 1.3rem; font-weight: 700; }
-    .race-plan-header .target { color: #94a3b8; font-size: 0.9rem; margin-top: 8px; }
+    .race-plan-header .target { color: #94a3b8; margin-top: 8px; }
     .race-plan-header .target strong { color: #22c55e; font-size: 1.2rem; }
-    
     .training-focus { background: rgba(14, 165, 233, 0.1); border: 1px solid rgba(14, 165, 233, 0.3); border-radius: 12px; padding: 16px; margin-bottom: 16px; }
     .training-focus h4 { color: #0ea5e9; font-size: 0.9rem; margin-bottom: 12px; }
     .focus-item { display: flex; align-items: flex-start; gap: 10px; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.05); }
     .focus-item:last-child { border-bottom: none; }
     .focus-bullet { color: #0ea5e9; font-weight: bold; }
-    .focus-text { color: white; font-size: 0.9rem; }
-    
     .race-strategy { background: rgba(34, 197, 94, 0.1); border: 1px solid rgba(34, 197, 94, 0.3); border-radius: 12px; padding: 16px; margin-bottom: 16px; }
     .race-strategy h4 { color: #22c55e; font-size: 0.9rem; margin-bottom: 12px; }
     .strategy-text { font-size: 0.95rem; font-weight: 600; margin-bottom: 16px; padding: 12px; background: rgba(255,255,255,0.05); border-radius: 8px; }
-    .splits-table { width: 100%; }
     .split-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 0.85rem; }
     .split-row:last-child { border-bottom: none; }
     .split-segment { color: #94a3b8; }
-    .split-pace { color: white; }
     .split-target { color: #22c55e; font-weight: 600; }
-    
     .mental-cues { background: rgba(139, 92, 246, 0.1); border: 1px solid rgba(139, 92, 246, 0.3); border-radius: 12px; padding: 16px; margin-bottom: 16px; }
     .mental-cues h4 { color: #a78bfa; font-size: 0.9rem; margin-bottom: 12px; }
     .cue-item { display: flex; align-items: center; gap: 10px; padding: 8px 0; }
     .cue-number { background: #a78bfa; color: #1a1a2e; width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 700; }
-    .cue-text { color: white; font-size: 0.9rem; }
-    
     .warmup-plan { background: rgba(255,255,255,0.03); border-radius: 12px; padding: 16px; }
     .warmup-plan h4 { color: #fbbf24; font-size: 0.9rem; margin-bottom: 12px; }
     .warmup-meta { display: flex; gap: 16px; margin-bottom: 12px; font-size: 0.8rem; color: #94a3b8; }
     .warmup-activity { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 0.85rem; }
     .warmup-activity:last-child { border-bottom: none; }
-    .warmup-name { color: white; }
     .warmup-dist { color: #0ea5e9; font-weight: 600; }
-    .warmup-notes { color: #94a3b8; font-size: 0.8rem; }
     .final-prep { margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.1); }
     .final-prep-title { color: #fbbf24; font-size: 0.8rem; margin-bottom: 8px; }
     .final-prep-item { color: #94a3b8; font-size: 0.8rem; padding: 4px 0; }
-    
     .missing-data { background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 12px; padding: 20px; text-align: center; }
     .missing-data .icon { font-size: 2rem; margin-bottom: 10px; }
     .missing-data h4 { color: #ef4444; margin-bottom: 12px; }
     .missing-item { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 8px; font-size: 0.9rem; }
     .missing-item.done { color: #22c55e; }
     .missing-item.needed { color: #ef4444; }
+    
+    /* Leaderboard Styles */
+    .leaderboard-card { background: linear-gradient(135deg, rgba(245, 158, 11, 0.1) 0%, rgba(234, 88, 12, 0.1) 100%); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 14px; padding: 20px; margin-bottom: 16px; }
+    .leaderboard-card h2 { color: #fbbf24; }
+    .leaderboard-entry { display: flex; align-items: center; gap: 12px; padding: 14px; background: rgba(255,255,255,0.03); border-radius: 10px; margin-bottom: 10px; }
+    .leaderboard-entry.rank-1 { background: linear-gradient(135deg, rgba(255, 215, 0, 0.15) 0%, rgba(255, 193, 7, 0.1) 100%); border: 1px solid rgba(255, 215, 0, 0.3); }
+    .leaderboard-entry.rank-2 { background: linear-gradient(135deg, rgba(192, 192, 192, 0.1) 0%, rgba(169, 169, 169, 0.1) 100%); border: 1px solid rgba(192, 192, 192, 0.2); }
+    .leaderboard-entry.rank-3 { background: linear-gradient(135deg, rgba(205, 127, 50, 0.1) 0%, rgba(184, 115, 51, 0.1) 100%); border: 1px solid rgba(205, 127, 50, 0.2); }
+    .rank-badge { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 1rem; }
+    .rank-1 .rank-badge { background: linear-gradient(135deg, #ffd700 0%, #ffb700 100%); color: #1a1a2e; }
+    .rank-2 .rank-badge { background: linear-gradient(135deg, #c0c0c0 0%, #a9a9a9 100%); color: #1a1a2e; }
+    .rank-3 .rank-badge { background: linear-gradient(135deg, #cd7f32 0%, #b87333 100%); color: #1a1a2e; }
+    .rank-badge.default { background: rgba(255,255,255,0.1); color: #94a3b8; }
+    .leaderboard-info { flex: 1; }
+    .leaderboard-name { font-weight: 600; font-size: 1rem; margin-bottom: 4px; }
+    .leaderboard-stats { display: flex; gap: 12px; font-size: 0.75rem; color: #94a3b8; }
+    .leaderboard-score { text-align: right; }
+    .leaderboard-score .score { font-size: 1.4rem; font-weight: 700; color: #fbbf24; }
+    .leaderboard-score .label { font-size: 0.7rem; color: #94a3b8; }
+    .delta-from-top { font-size: 0.75rem; color: #ef4444; margin-top: 2px; }
+    .delta-from-top.top { color: #22c55e; }
+    
+    /* Swimmer Leaderboard View */
+    .my-rank-card { background: linear-gradient(135deg, rgba(14, 165, 233, 0.2) 0%, rgba(2, 132, 199, 0.2) 100%); border: 1px solid rgba(14, 165, 233, 0.4); border-radius: 14px; padding: 20px; margin-bottom: 16px; text-align: center; }
+    .my-rank-card .rank-big { font-size: 3rem; font-weight: 700; color: #0ea5e9; }
+    .my-rank-card .rank-label { color: #94a3b8; font-size: 0.85rem; }
+    .my-rank-card .delta { margin-top: 10px; font-size: 0.9rem; }
+    .my-rank-card .delta.behind { color: #ef4444; }
+    .my-rank-card .delta.top { color: #22c55e; }
+    .improvement-trend { display: flex; justify-content: space-around; margin-top: 16px; padding-top: 16px; border-top: 1px solid rgba(255,255,255,0.1); }
+    .trend-item { text-align: center; }
+    .trend-item .value { font-size: 1.2rem; font-weight: 700; }
+    .trend-item .label { font-size: 0.7rem; color: #94a3b8; }
+    .trend-item .value.positive { color: #22c55e; }
+    .trend-item .value.negative { color: #ef4444; }
+    .trend-item .value.neutral { color: #94a3b8; }
   </style>
 </head>
 <body>
@@ -193,6 +213,13 @@
             <div class="summary-box"><div class="number" id="noGoalsCount">0</div><div class="label">No Goals Set</div></div>
           </div>
         </div>
+        
+        <!-- Leaderboard -->
+        <div class="leaderboard-card">
+          <h2>🏆 Team Leaderboard</h2>
+          <div id="coachLeaderboard"></div>
+        </div>
+        
         <div id="mostImprovedSection" class="most-improved-banner" style="display:none;">
           <div class="trophy">🏆</div>
           <h4>Most Improved This Month</h4>
@@ -213,12 +240,19 @@
       
       <!-- Swimmer Section -->
       <div id="swimmerSection" style="display:none;">
-        <!-- Race Plan -->
-        <div class="card">
-          <h2>🏁 My Race Plan</h2>
-          <div id="racePlanContent"></div>
+        <!-- My Rank -->
+        <div id="myRankSection" class="my-rank-card" style="display:none;">
+          <div class="rank-label">Your Rank</div>
+          <div class="rank-big" id="myRank">-</div>
+          <div class="delta" id="myDelta"></div>
+          <div class="improvement-trend">
+            <div class="trend-item"><div class="value" id="myImprovement">-</div><div class="label">Improvement</div></div>
+            <div class="trend-item"><div class="value" id="myConsistency">-</div><div class="label">Consistency</div></div>
+            <div class="trend-item"><div class="value" id="myGoalRate">-</div><div class="label">Goals Hit</div></div>
+          </div>
         </div>
         
+        <div class="card"><h2>🏁 My Race Plan</h2><div id="racePlanContent"></div></div>
         <div class="card"><h2>📈 Progress vs Goals</h2><div id="progressList"></div></div>
         <div class="card">
           <h2>🎥 Upload Swim Video</h2>
@@ -227,8 +261,8 @@
               <div class="form-group"><label>Stroke</label><select id="videoStroke"><option value="Freestyle">Freestyle</option><option value="Backstroke">Backstroke</option><option value="Breaststroke">Breaststroke</option><option value="Butterfly">Butterfly</option><option value="IM">Individual Medley</option></select></div>
               <div class="upload-area" id="uploadArea">
                 <input type="file" id="videoFile" accept="video/*">
-                <div class="upload-icon">📹</div>
-                <div class="upload-text">Tap to select video</div>
+                <div style="font-size:2rem;margin-bottom:10px;">📹</div>
+                <div style="color:#94a3b8;font-size:0.85rem;">Tap to select video</div>
                 <div class="file-selected" id="fileSelected"></div>
               </div>
               <button type="submit" class="btn btn-purple" style="margin-top:14px;" id="uploadBtn" disabled>Upload & Analyze</button>
@@ -242,7 +276,7 @@
           <form id="logTimeForm">
             <div class="form-group"><label>Stroke</label><select id="timeStroke"><option value="Freestyle">Freestyle</option><option value="Backstroke">Backstroke</option><option value="Breaststroke">Breaststroke</option><option value="Butterfly">Butterfly</option><option value="IM">Individual Medley</option></select></div>
             <div class="form-group"><label>Distance (m)</label><select id="timeDistance"><option value="50">50m</option><option value="100">100m</option><option value="200">200m</option><option value="400">400m</option></select></div>
-            <div class="form-group"><label>Time</label><div class="time-inputs"><input type="number" id="timeMinutes" placeholder="Min" min="0" required><input type="number" id="timeSeconds" placeholder="Sec" min="0" max="59" required></div></div>
+            <div class="form-group"><label>Time</label><div class="time-inputs"><input type="number" id="timeMinutes" placeholder="Min" min="0" max="30" required><input type="number" id="timeSeconds" placeholder="Sec" min="0" max="59" required></div></div>
             <button type="submit" class="btn btn-primary">Log Time</button>
           </form>
         </div>
@@ -299,8 +333,18 @@
       document.getElementById('dashboard').classList.add('active');
       document.getElementById('userName').textContent = currentUser.name;
       document.getElementById('userRole').textContent = currentUser.role;
-      if (currentUser.role === 'coach') { document.getElementById('coachSection').style.display = 'block'; loadCoachDashboard(); }
-      else { document.getElementById('swimmerSection').style.display = 'block'; loadRacePlan(); loadProgress(); loadTimes(); loadFeedback(); }
+      if (currentUser.role === 'coach') { 
+        document.getElementById('coachSection').style.display = 'block'; 
+        loadCoachDashboard(); 
+        loadCoachLeaderboard();
+      } else { 
+        document.getElementById('swimmerSection').style.display = 'block'; 
+        loadSwimmerLeaderboard();
+        loadRacePlan(); 
+        loadProgress(); 
+        loadTimes(); 
+        loadFeedback(); 
+      }
     }
 
     async function loadCoachDashboard() {
@@ -324,61 +368,84 @@
       }).join('');
     }
 
+    async function loadCoachLeaderboard() {
+      const res = await fetch(`/api/leaderboard/${currentUser.id}`);
+      const data = await res.json();
+      const container = document.getElementById('coachLeaderboard');
+      
+      if (!data.enabled || data.leaderboard.length === 0) {
+        container.innerHTML = '<p class="empty-state">Add swimmers with logged times to see leaderboard</p>';
+        return;
+      }
+      
+      container.innerHTML = data.leaderboard.map(s => {
+        const rankClass = s.rank <= 3 ? `rank-${s.rank}` : '';
+        return `
+          <div class="leaderboard-entry ${rankClass}">
+            <div class="rank-badge ${s.rank > 3 ? 'default' : ''}">${s.rank}</div>
+            <div class="leaderboard-info">
+              <div class="leaderboard-name">${s.name}</div>
+              <div class="leaderboard-stats">
+                <span>📈 ${s.improvementPct > 0 ? '+' : ''}${s.improvementPct}%</span>
+                <span>🎯 ${s.goalCompletionRate}%</span>
+                <span>💪 ${s.consistencyScore}%</span>
+              </div>
+            </div>
+            <div class="leaderboard-score">
+              <div class="score">${s.compositeScore}</div>
+              <div class="label">Score</div>
+              ${s.deltaFromTop > 0 ? `<div class="delta-from-top">-${s.deltaFromTop} from top</div>` : `<div class="delta-from-top top">🥇 Leader</div>`}
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    async function loadSwimmerLeaderboard() {
+      if (!currentUser.coach_id) return;
+      
+      const res = await fetch(`/api/leaderboard/${currentUser.coach_id}`);
+      const data = await res.json();
+      
+      if (!data.enabled || data.leaderboard.length === 0) return;
+      
+      const myData = data.leaderboard.find(s => s.id === currentUser.id);
+      if (!myData) return;
+      
+      document.getElementById('myRankSection').style.display = 'block';
+      document.getElementById('myRank').textContent = `#${myData.rank}`;
+      
+      if (myData.deltaFromTop > 0) {
+        document.getElementById('myDelta').textContent = `${myData.deltaFromTop} points from #1`;
+        document.getElementById('myDelta').className = 'delta behind';
+      } else {
+        document.getElementById('myDelta').textContent = '🥇 You\'re leading!';
+        document.getElementById('myDelta').className = 'delta top';
+      }
+      
+      const impEl = document.getElementById('myImprovement');
+      impEl.textContent = `${myData.improvementPct > 0 ? '+' : ''}${myData.improvementPct}%`;
+      impEl.className = `value ${myData.improvementPct > 0 ? 'positive' : myData.improvementPct < 0 ? 'negative' : 'neutral'}`;
+      
+      document.getElementById('myConsistency').textContent = `${myData.consistencyScore}%`;
+      document.getElementById('myGoalRate').textContent = `${myData.goalCompletionRate}%`;
+    }
+
     async function loadRacePlan() {
       const res = await fetch(`/api/race-plan/${currentUser.id}`);
       const data = await res.json();
       const container = document.getElementById('racePlanContent');
-      
       if (!data.ready) {
-        container.innerHTML = `
-          <div class="missing-data">
-            <div class="icon">📋</div>
-            <h4>Complete these to unlock your race plan:</h4>
-            <div class="missing-item ${data.missing.goals ? 'needed' : 'done'}">${data.missing.goals ? '❌' : '✅'} Set a goal</div>
-            <div class="missing-item ${data.missing.times ? 'needed' : 'done'}">${data.missing.times ? '❌' : '✅'} Log swim times</div>
-            <div class="missing-item ${data.missing.video ? 'needed' : 'done'}">${data.missing.video ? '❌' : '✅'} Upload a video</div>
-          </div>
-        `;
+        container.innerHTML = `<div class="missing-data"><div class="icon">📋</div><h4>Complete these to unlock:</h4><div class="missing-item ${data.missing.goals ? 'needed' : 'done'}">${data.missing.goals ? '❌' : '✅'} Set a goal</div><div class="missing-item ${data.missing.times ? 'needed' : 'done'}">${data.missing.times ? '❌' : '✅'} Log times</div><div class="missing-item ${data.missing.video ? 'needed' : 'done'}">${data.missing.video ? '❌' : '✅'} Upload video</div></div>`;
         return;
       }
-      
-      const { goal, performance, trainingFocus, racePlan, warmupPlan } = data;
-      
+      const { goal, racePlan, trainingFocus, warmupPlan } = data;
       container.innerHTML = `
-        <div class="race-plan-header">
-          <div class="icon">🏁</div>
-          <h3>Race Day Strategy</h3>
-          <div class="event">${goal.stroke} ${goal.distance}m</div>
-          <div class="target">Target: <strong>${racePlan.targetTime}</strong></div>
-        </div>
-        
-        <div class="training-focus">
-          <h4>🎯 This Month's Training Focus</h4>
-          ${trainingFocus.map(f => `<div class="focus-item"><span class="focus-bullet">→</span><span class="focus-text">${f}</span></div>`).join('')}
-        </div>
-        
-        <div class="race-strategy">
-          <h4>📊 Race Strategy</h4>
-          <div class="strategy-text">${racePlan.strategy}</div>
-          <div class="splits-table">
-            ${racePlan.splits.map(s => `<div class="split-row"><span class="split-segment">${s.segment}</span><span class="split-pace">${s.pace}</span><span class="split-target">${s.target}</span></div>`).join('')}
-          </div>
-        </div>
-        
-        <div class="mental-cues">
-          <h4>🧠 Mental Cues</h4>
-          ${racePlan.mentalCues.map((c, i) => `<div class="cue-item"><span class="cue-number">${i + 1}</span><span class="cue-text">${c}</span></div>`).join('')}
-        </div>
-        
-        <div class="warmup-plan">
-          <h4>🔥 Race Day Warm-Up</h4>
-          <div class="warmup-meta"><span>Total: ${warmupPlan.totalDistance}</span><span>Time: ${warmupPlan.timeNeeded}</span></div>
-          ${warmupPlan.activities.map(a => `<div class="warmup-activity"><span class="warmup-name">${a.activity}</span><span class="warmup-dist">${a.distance}</span></div>`).join('')}
-          <div class="final-prep">
-            <div class="final-prep-title">Final Prep:</div>
-            ${warmupPlan.finalPrep.map(p => `<div class="final-prep-item">• ${p}</div>`).join('')}
-          </div>
-        </div>
+        <div class="race-plan-header"><div class="icon">🏁</div><h3>Race Day Strategy</h3><div class="event">${goal.stroke} ${goal.distance}m</div><div class="target">Target: <strong>${racePlan.targetTime}</strong></div></div>
+        <div class="training-focus"><h4>🎯 Training Focus</h4>${trainingFocus.map(f => `<div class="focus-item"><span class="focus-bullet">→</span><span>${f}</span></div>`).join('')}</div>
+        <div class="race-strategy"><h4>📊 Race Strategy</h4><div class="strategy-text">${racePlan.strategy}</div>${racePlan.splits.map(s => `<div class="split-row"><span class="split-segment">${s.segment}</span><span>${s.pace}</span><span class="split-target">${s.target}</span></div>`).join('')}</div>
+        <div class="mental-cues"><h4>🧠 Mental Cues</h4>${racePlan.mentalCues.map((c, i) => `<div class="cue-item"><span class="cue-number">${i + 1}</span><span>${c}</span></div>`).join('')}</div>
+        <div class="warmup-plan"><h4>🔥 Warm-Up</h4><div class="warmup-meta"><span>${warmupPlan.totalDistance}</span><span>${warmupPlan.timeNeeded}</span></div>${warmupPlan.activities.map(a => `<div class="warmup-activity"><span>${a.activity}</span><span class="warmup-dist">${a.distance}</span></div>`).join('')}<div class="final-prep"><div class="final-prep-title">Final Prep:</div>${warmupPlan.finalPrep.map(p => `<div class="final-prep-item">• ${p}</div>`).join('')}</div></div>
       `;
     }
 
@@ -386,21 +453,21 @@
       e.preventDefault();
       const res = await fetch('/api/coach/add-swimmer', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: document.getElementById('swimmerName').value, email: document.getElementById('swimmerEmail').value, password: document.getElementById('swimmerPassword').value, coachId: currentUser.id }) });
       const data = await res.json();
-      if (data.error) alert(data.error); else { document.getElementById('addSwimmerForm').reset(); loadCoachDashboard(); }
+      if (data.error) alert(data.error); else { document.getElementById('addSwimmerForm').reset(); loadCoachDashboard(); loadCoachLeaderboard(); }
     });
 
     document.getElementById('logTimeForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       const res = await fetch('/api/times', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ swimmerId: currentUser.id, stroke: document.getElementById('timeStroke').value, distance: document.getElementById('timeDistance').value, minutes: document.getElementById('timeMinutes').value, seconds: document.getElementById('timeSeconds').value }) });
       const data = await res.json();
-      if (data.error) alert(data.error); else { document.getElementById('timeMinutes').value = ''; document.getElementById('timeSeconds').value = ''; loadTimes(); loadProgress(); loadRacePlan(); }
+      if (data.error) alert(data.error); else { document.getElementById('timeMinutes').value = ''; document.getElementById('timeSeconds').value = ''; loadTimes(); loadProgress(); loadRacePlan(); loadSwimmerLeaderboard(); }
     });
 
     document.getElementById('setGoalForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       const res = await fetch('/api/goals', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ swimmerId: currentUser.id, stroke: document.getElementById('goalStroke').value, distance: document.getElementById('goalDistance').value, targetMinutes: document.getElementById('goalMinutes').value, targetSeconds: document.getElementById('goalSeconds').value }) });
       const data = await res.json();
-      if (data.error) alert(data.error); else { document.getElementById('goalMinutes').value = ''; document.getElementById('goalSeconds').value = ''; loadProgress(); loadRacePlan(); }
+      if (data.error) alert(data.error); else { document.getElementById('goalMinutes').value = ''; document.getElementById('goalSeconds').value = ''; loadProgress(); loadRacePlan(); loadSwimmerLeaderboard(); }
     });
 
     async function loadTimes() {
