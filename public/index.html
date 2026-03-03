@@ -12,13 +12,13 @@
     .header h1 { font-size: 1.6rem; margin-bottom: 6px; }
     .header p { color: #94a3b8; font-size: 0.85rem; }
     .card { background: rgba(255,255,255,0.05); border-radius: 14px; padding: 20px; margin-bottom: 16px; }
-    .card h2 { font-size: 1rem; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+    .card h2 { font-size: 1rem; margin-bottom: 14px; }
     .tabs { display: flex; gap: 8px; margin-bottom: 16px; }
-    .tab { flex: 1; padding: 10px; border: none; border-radius: 8px; background: rgba(255,255,255,0.1); color: #94a3b8; cursor: pointer; font-weight: 600; font-size: 0.9rem; }
+    .tab { flex: 1; padding: 10px; border: none; border-radius: 8px; background: rgba(255,255,255,0.1); color: #94a3b8; cursor: pointer; font-weight: 600; }
     .tab.active { background: #0ea5e9; color: white; }
     .form-group { margin-bottom: 14px; }
     .form-group label { display: block; margin-bottom: 5px; color: #94a3b8; font-size: 0.8rem; }
-    .form-group input, .form-group select { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.05); color: white; font-size: 0.95rem; }
+    .form-group input, .form-group select { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.05); color: white; }
     .time-inputs { display: flex; gap: 8px; }
     .time-inputs input { text-align: center; }
     .btn { width: 100%; padding: 12px; border-radius: 10px; border: none; font-size: 0.95rem; font-weight: 600; cursor: pointer; }
@@ -26,7 +26,6 @@
     .btn-secondary { background: rgba(255,255,255,0.1); color: white; margin-top: 8px; }
     .btn-success { background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%); color: white; }
     .btn-purple { background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%); color: white; }
-    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
     .error { color: #ef4444; font-size: 0.8rem; margin-bottom: 8px; }
     .success { color: #22c55e; font-size: 0.8rem; margin-bottom: 8px; }
     .user-info { background: rgba(34, 197, 94, 0.1); border: 1px solid rgba(34, 197, 94, 0.3); padding: 14px; border-radius: 10px; margin-bottom: 16px; }
@@ -36,11 +35,8 @@
     .status-ahead { background: rgba(34, 197, 94, 0.2); color: #22c55e; }
     .status-behind { background: rgba(239, 68, 68, 0.2); color: #ef4444; }
     .status-no_data, .status-no_goals { background: rgba(148, 163, 184, 0.2); color: #94a3b8; }
-    .progress-stats { display: flex; gap: 16px; font-size: 0.8rem; color: #94a3b8; }
-    .progress-stats span { display: flex; flex-direction: column; }
-    .progress-stats strong { color: white; font-size: 1rem; }
     .time-entry { display: flex; justify-content: space-between; align-items: center; padding: 10px; background: rgba(255,255,255,0.03); border-radius: 8px; margin-bottom: 6px; }
-    .time-entry .stroke { font-weight: 600; font-size: 0.9rem; }
+    .time-entry .stroke { font-weight: 600; }
     .time-entry .details { color: #94a3b8; font-size: 0.8rem; }
     .time-entry .time { font-size: 1.1rem; font-weight: 700; color: #0ea5e9; }
     .empty-state { text-align: center; color: #64748b; padding: 16px; font-size: 0.85rem; }
@@ -48,52 +44,47 @@
     .dashboard, .auth-section { display: none; }
     .auth-section.active, .dashboard.active { display: block; }
     .upload-area { border: 2px dashed rgba(255,255,255,0.2); border-radius: 10px; padding: 30px; text-align: center; cursor: pointer; }
-    .upload-area:hover { border-color: #0ea5e9; }
     .upload-area input { display: none; }
     .file-selected { color: #22c55e; font-size: 0.85rem; margin-top: 8px; }
     .feedback-card { background: rgba(139, 92, 246, 0.1); border: 1px solid rgba(139, 92, 246, 0.3); border-radius: 12px; padding: 16px; margin-bottom: 12px; }
-    .feedback-card h4 { color: #a78bfa; margin-bottom: 12px; font-size: 0.95rem; }
+    .feedback-card h4 { color: #a78bfa; margin-bottom: 12px; }
     .score-badge { background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%); padding: 6px 14px; border-radius: 20px; font-weight: 700; }
     .priority-box { background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); padding: 10px; border-radius: 8px; margin-top: 12px; }
-    .priority-box label { color: #ef4444; font-size: 0.75rem; display: block; margin-bottom: 4px; }
+    .priority-box label { color: #ef4444; font-size: 0.75rem; }
     .processing { text-align: center; padding: 30px; }
     .spinner { width: 40px; height: 40px; border: 3px solid rgba(255,255,255,0.1); border-top-color: #0ea5e9; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 16px; }
     @keyframes spin { to { transform: rotate(360deg); } }
     .summary-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 16px; }
     .summary-box { background: rgba(255,255,255,0.03); padding: 14px; border-radius: 10px; text-align: center; }
     .summary-box .number { font-size: 1.8rem; font-weight: 700; }
-    .summary-box .label { font-size: 0.75rem; color: #94a3b8; margin-top: 4px; }
+    .summary-box .label { font-size: 0.75rem; color: #94a3b8; }
     .summary-box.ahead .number { color: #22c55e; }
     .summary-box.behind .number { color: #ef4444; }
-    .summary-box.total .number { color: #0ea5e9; }
     .swimmer-detail-card { background: rgba(255,255,255,0.03); border-radius: 12px; padding: 16px; margin-bottom: 12px; border-left: 4px solid #94a3b8; }
     .swimmer-detail-card.ahead { border-left-color: #22c55e; }
     .swimmer-detail-card.behind { border-left-color: #ef4444; }
     .swimmer-detail-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
-    .swimmer-detail-header h4 { font-size: 1rem; }
-    .swimmer-detail-stats { display: flex; gap: 16px; font-size: 0.8rem; color: #94a3b8; flex-wrap: wrap; }
-    .swimmer-detail-stats span { display: flex; flex-direction: column; }
-    .swimmer-detail-stats strong { color: white; font-size: 0.95rem; }
+    .swimmer-detail-stats { display: flex; gap: 16px; font-size: 0.8rem; color: #94a3b8; }
+    .swimmer-detail-stats strong { color: white; }
     .leaderboard-card { background: linear-gradient(135deg, rgba(245, 158, 11, 0.1) 0%, rgba(234, 88, 12, 0.1) 100%); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 14px; padding: 20px; margin-bottom: 16px; }
     .leaderboard-card h2 { color: #fbbf24; }
     .leaderboard-entry { display: flex; align-items: center; gap: 12px; padding: 14px; background: rgba(255,255,255,0.03); border-radius: 10px; margin-bottom: 10px; }
     .leaderboard-entry.rank-1 { background: linear-gradient(135deg, rgba(255, 215, 0, 0.15) 0%, rgba(255, 193, 7, 0.1) 100%); border: 1px solid rgba(255, 215, 0, 0.3); }
-    .leaderboard-entry.rank-2 { background: linear-gradient(135deg, rgba(192, 192, 192, 0.1) 0%, rgba(169, 169, 169, 0.1) 100%); border: 1px solid rgba(192, 192, 192, 0.2); }
-    .leaderboard-entry.rank-3 { background: linear-gradient(135deg, rgba(205, 127, 50, 0.1) 0%, rgba(184, 115, 51, 0.1) 100%); border: 1px solid rgba(205, 127, 50, 0.2); }
+    .leaderboard-entry.rank-2 { background: linear-gradient(135deg, rgba(192, 192, 192, 0.1) 0%, rgba(169, 169, 169, 0.1) 100%); }
+    .leaderboard-entry.rank-3 { background: linear-gradient(135deg, rgba(205, 127, 50, 0.1) 0%, rgba(184, 115, 51, 0.1) 100%); }
     .rank-badge { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; }
-    .rank-1 .rank-badge { background: linear-gradient(135deg, #ffd700 0%, #ffb700 100%); color: #1a1a2e; }
-    .rank-2 .rank-badge { background: linear-gradient(135deg, #c0c0c0 0%, #a9a9a9 100%); color: #1a1a2e; }
-    .rank-3 .rank-badge { background: linear-gradient(135deg, #cd7f32 0%, #b87333 100%); color: #1a1a2e; }
+    .rank-1 .rank-badge { background: linear-gradient(135deg, #ffd700, #ffb700); color: #1a1a2e; }
+    .rank-2 .rank-badge { background: linear-gradient(135deg, #c0c0c0, #a9a9a9); color: #1a1a2e; }
+    .rank-3 .rank-badge { background: linear-gradient(135deg, #cd7f32, #b87333); color: #1a1a2e; }
     .rank-badge.default { background: rgba(255,255,255,0.1); color: #94a3b8; }
     .leaderboard-info { flex: 1; }
-    .leaderboard-name { font-weight: 600; font-size: 1rem; margin-bottom: 4px; }
+    .leaderboard-name { font-weight: 600; margin-bottom: 4px; }
     .leaderboard-stats { display: flex; gap: 12px; font-size: 0.75rem; color: #94a3b8; }
-    .leaderboard-score { text-align: right; }
     .leaderboard-score .score { font-size: 1.4rem; font-weight: 700; color: #fbbf24; }
     .my-rank-card { background: linear-gradient(135deg, rgba(14, 165, 233, 0.2) 0%, rgba(2, 132, 199, 0.2) 100%); border: 1px solid rgba(14, 165, 233, 0.4); border-radius: 14px; padding: 20px; margin-bottom: 16px; text-align: center; }
     .my-rank-card .rank-big { font-size: 3rem; font-weight: 700; color: #0ea5e9; }
-    .my-rank-card .rank-label { color: #94a3b8; font-size: 0.85rem; }
-    .my-rank-card .delta { margin-top: 10px; font-size: 0.9rem; }
+    .my-rank-card .rank-label { color: #94a3b8; }
+    .my-rank-card .delta { margin-top: 10px; }
     .my-rank-card .delta.behind { color: #ef4444; }
     .my-rank-card .delta.top { color: #22c55e; }
     .improvement-trend { display: flex; justify-content: space-around; margin-top: 16px; padding-top: 16px; border-top: 1px solid rgba(255,255,255,0.1); }
@@ -102,7 +93,6 @@
     .trend-item .label { font-size: 0.7rem; color: #94a3b8; }
     .trend-item .value.positive { color: #22c55e; }
     .trend-item .value.negative { color: #ef4444; }
-    .trend-item .value.neutral { color: #94a3b8; }
     .insights-card { background: linear-gradient(135deg, rgba(14, 165, 233, 0.1) 0%, rgba(6, 182, 212, 0.1) 100%); border: 1px solid rgba(14, 165, 233, 0.3); border-radius: 14px; padding: 20px; margin-bottom: 16px; }
     .insights-card h2 { color: #0ea5e9; }
     .insight-section { background: rgba(255,255,255,0.03); border-radius: 10px; padding: 14px; margin-bottom: 12px; }
@@ -111,36 +101,29 @@
     .insight-desc { font-size: 0.8rem; color: #94a3b8; margin-top: 4px; }
     .trend-up { color: #22c55e; }
     .trend-down { color: #ef4444; }
-    .factor-item { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.05); }
-    .factor-item:last-child { border-bottom: none; }
-    .factor-icon { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; }
-    .factor-icon.positive { background: rgba(34, 197, 94, 0.2); color: #22c55e; }
-    .factor-icon.negative { background: rgba(239, 68, 68, 0.2); color: #ef4444; }
-    .main-factor { background: rgba(139, 92, 246, 0.1); border: 1px solid rgba(139, 92, 246, 0.3); border-radius: 10px; padding: 14px; margin-bottom: 12px; text-align: center; }
-    .main-factor .label { color: #a78bfa; font-size: 0.75rem; margin-bottom: 6px; }
+    .main-factor { background: rgba(139, 92, 246, 0.1); border: 1px solid rgba(139, 92, 246, 0.3); border-radius: 10px; padding: 14px; text-align: center; }
+    .main-factor .label { color: #a78bfa; font-size: 0.75rem; }
     .main-factor .text { font-size: 1rem; font-weight: 600; }
     .fatigue-alert { background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 10px; padding: 14px; margin-bottom: 12px; }
-    .fatigue-alert h4 { color: #ef4444; font-size: 0.9rem; margin-bottom: 8px; }
+    .fatigue-alert h4 { color: #ef4444; }
     .goal-insight { padding: 12px; border-radius: 10px; margin-bottom: 12px; }
     .goal-insight.achieved { background: rgba(34, 197, 94, 0.1); border: 1px solid rgba(34, 197, 94, 0.3); }
     .goal-insight.close { background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.3); }
     .goal-insight.working { background: rgba(14, 165, 233, 0.1); border: 1px solid rgba(14, 165, 233, 0.3); }
-    .goal-insight .status { font-weight: 600; font-size: 0.9rem; }
+    .goal-insight .status { font-weight: 600; }
     .goal-insight.achieved .status { color: #22c55e; }
     .goal-insight.close .status { color: #fbbf24; }
     .goal-insight.working .status { color: #0ea5e9; }
     .missing-data { background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 12px; padding: 20px; text-align: center; }
-    .missing-data .icon { font-size: 2rem; margin-bottom: 10px; }
     .missing-data h4 { color: #ef4444; margin-bottom: 12px; }
-    .missing-item { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 8px; font-size: 0.9rem; }
+    .missing-item { padding: 8px; }
     .missing-item.done { color: #22c55e; }
     .missing-item.needed { color: #ef4444; }
     .training-plan-card { background: linear-gradient(135deg, rgba(34, 197, 94, 0.1) 0%, rgba(22, 163, 74, 0.1) 100%); border: 1px solid rgba(34, 197, 94, 0.3); border-radius: 14px; padding: 20px; margin-bottom: 16px; }
     .training-plan-card h2 { color: #22c55e; }
     .plan-header { background: rgba(255,255,255,0.05); border-radius: 10px; padding: 16px; margin-bottom: 16px; text-align: center; }
-    .plan-header .week { font-size: 0.8rem; color: #94a3b8; margin-bottom: 4px; }
+    .plan-header .week { font-size: 0.8rem; color: #94a3b8; }
     .plan-header .focus { font-size: 1.1rem; font-weight: 700; color: #22c55e; }
-    .plan-header .intensity { margin-top: 8px; }
     .intensity-badge { padding: 4px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; }
     .intensity-high { background: rgba(239, 68, 68, 0.2); color: #ef4444; }
     .intensity-moderate { background: rgba(245, 158, 11, 0.2); color: #fbbf24; }
@@ -148,33 +131,70 @@
     .focus-areas { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
     .focus-tag { background: rgba(14, 165, 233, 0.2); color: #0ea5e9; padding: 6px 12px; border-radius: 20px; font-size: 0.8rem; }
     .workout-day { background: rgba(255,255,255,0.03); border-radius: 10px; padding: 14px; margin-bottom: 12px; border-left: 3px solid #0ea5e9; }
-    .workout-day .day-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
-    .workout-day .day-name { font-weight: 700; font-size: 1rem; }
-    .workout-day .day-type { font-size: 0.8rem; color: #0ea5e9; }
-    .workout-day .day-distance { font-size: 0.75rem; color: #94a3b8; }
+    .workout-day .day-header { display: flex; justify-content: space-between; margin-bottom: 10px; }
+    .workout-day .day-name { font-weight: 700; }
+    .workout-day .day-type { color: #0ea5e9; font-size: 0.8rem; }
+    .workout-day .day-distance { color: #94a3b8; font-size: 0.75rem; }
     .workout-section { margin-bottom: 10px; }
-    .workout-section .section-label { font-size: 0.7rem; color: #64748b; text-transform: uppercase; margin-bottom: 4px; }
-    .workout-set { background: rgba(255,255,255,0.02); padding: 8px 10px; border-radius: 6px; margin-bottom: 6px; }
-    .workout-set .set-name { font-size: 0.85rem; font-weight: 600; }
-    .workout-set .set-details { font-size: 0.75rem; color: #94a3b8; margin-top: 2px; }
+    .workout-section .section-label { font-size: 0.7rem; color: #64748b; text-transform: uppercase; }
+    .workout-set { background: rgba(255,255,255,0.02); padding: 8px; border-radius: 6px; margin-bottom: 6px; }
+    .workout-set .set-name { font-weight: 600; font-size: 0.85rem; }
+    .workout-set .set-details { font-size: 0.75rem; color: #94a3b8; }
     .plan-tips { background: rgba(139, 92, 246, 0.1); border: 1px solid rgba(139, 92, 246, 0.3); border-radius: 10px; padding: 14px; margin-top: 16px; }
-    .plan-tips h4 { color: #a78bfa; font-size: 0.85rem; margin-bottom: 10px; }
-    .tip-item { font-size: 0.85rem; padding: 6px 0; color: #e2e8f0; }
+    .plan-tips h4 { color: #a78bfa; margin-bottom: 10px; }
+    .tip-item { font-size: 0.85rem; padding: 6px 0; }
     .plan-meta { display: flex; justify-content: space-around; padding: 12px; background: rgba(255,255,255,0.03); border-radius: 10px; margin-top: 16px; }
     .plan-meta-item { text-align: center; }
     .plan-meta-item .value { font-size: 1.2rem; font-weight: 700; color: #22c55e; }
     .plan-meta-item .label { font-size: 0.7rem; color: #94a3b8; }
-    .coach-plan-preview { background: rgba(34, 197, 94, 0.1); padding: 10px; border-radius: 8px; margin-top: 10px; font-size: 0.8rem; }
-    .coach-plan-preview .label { color: #22c55e; margin-bottom: 4px; }
     .analytics-card { background: linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(124, 58, 237, 0.1) 100%); border: 1px solid rgba(139, 92, 246, 0.3); border-radius: 14px; padding: 20px; margin-bottom: 16px; }
     .analytics-card h2 { color: #a78bfa; }
     .analytics-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
     .analytics-box { background: rgba(255,255,255,0.03); padding: 14px; border-radius: 10px; text-align: center; }
     .analytics-box .number { font-size: 1.5rem; font-weight: 700; color: #a78bfa; }
     .analytics-box .label { font-size: 0.7rem; color: #94a3b8; }
+    /* Achievements */
+    .achievements-card { background: linear-gradient(135deg, rgba(245, 158, 11, 0.1) 0%, rgba(234, 88, 12, 0.1) 100%); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 14px; padding: 20px; margin-bottom: 16px; }
+    .achievements-card h2 { color: #fbbf24; }
+    .streak-display { display: flex; justify-content: center; gap: 30px; margin-bottom: 20px; padding: 16px; background: rgba(255,255,255,0.03); border-radius: 10px; }
+    .streak-item { text-align: center; }
+    .streak-item .number { font-size: 2rem; font-weight: 700; color: #f59e0b; }
+    .streak-item .label { font-size: 0.75rem; color: #94a3b8; }
+    .streak-item .fire { font-size: 1.5rem; }
+    .challenge-box { background: rgba(14, 165, 233, 0.1); border: 1px solid rgba(14, 165, 233, 0.3); border-radius: 10px; padding: 14px; margin-bottom: 16px; }
+    .challenge-box h4 { color: #0ea5e9; margin-bottom: 8px; }
+    .challenge-name { font-weight: 600; margin-bottom: 4px; }
+    .challenge-desc { font-size: 0.85rem; color: #94a3b8; margin-bottom: 10px; }
+    .challenge-progress { background: rgba(255,255,255,0.1); border-radius: 10px; height: 8px; overflow: hidden; }
+    .challenge-progress-bar { background: linear-gradient(90deg, #0ea5e9, #22c55e); height: 100%; transition: width 0.3s; }
+    .challenge-status { display: flex; justify-content: space-between; margin-top: 8px; font-size: 0.8rem; color: #94a3b8; }
+    .badges-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+    .badge-item { text-align: center; padding: 12px 6px; background: rgba(255,255,255,0.03); border-radius: 10px; }
+    .badge-item.earned { background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.3); }
+    .badge-item.locked { opacity: 0.4; }
+    .badge-icon { font-size: 1.8rem; margin-bottom: 4px; }
+    .badge-name { font-size: 0.65rem; color: #94a3b8; }
+    .badge-item.earned .badge-name { color: #fbbf24; }
+    .badge-notification { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); padding: 16px 24px; border-radius: 12px; display: none; z-index: 1000; animation: slideDown 0.3s ease; }
+    .badge-notification.show { display: block; }
+    @keyframes slideDown { from { transform: translateX(-50%) translateY(-100%); } to { transform: translateX(-50%) translateY(0); } }
+    .badge-notification-content { display: flex; align-items: center; gap: 12px; }
+    .badge-notification-icon { font-size: 2rem; }
+    .badge-notification-text h4 { color: white; margin-bottom: 2px; }
+    .badge-notification-text p { color: rgba(255,255,255,0.8); font-size: 0.85rem; }
   </style>
 </head>
 <body>
+  <div id="badgeNotification" class="badge-notification">
+    <div class="badge-notification-content">
+      <div class="badge-notification-icon" id="badgeNotifIcon">🏅</div>
+      <div class="badge-notification-text">
+        <h4 id="badgeNotifTitle">Badge Unlocked!</h4>
+        <p id="badgeNotifDesc">You earned a new badge</p>
+      </div>
+    </div>
+  </div>
+
   <div class="container">
     <div class="header">
       <h1>🏊 SwiftLapLogic</h1>
@@ -214,18 +234,18 @@
         <div class="card">
           <h2>📊 Team Overview</h2>
           <div class="summary-grid">
-            <div class="summary-box total"><div class="number" id="totalSwimmers">0</div><div class="label">Total</div></div>
+            <div class="summary-box"><div class="number" id="totalSwimmers">0</div><div class="label">Total</div></div>
             <div class="summary-box ahead"><div class="number" id="aheadCount">0</div><div class="label">On Track</div></div>
             <div class="summary-box behind"><div class="number" id="behindCount">0</div><div class="label">Behind</div></div>
             <div class="summary-box"><div class="number" id="noGoalsCount">0</div><div class="label">No Goals</div></div>
           </div>
         </div>
         <div class="analytics-card">
-          <h2>📈 Beta Analytics</h2>
+          <h2>📈 Analytics</h2>
           <div class="analytics-grid">
-            <div class="analytics-box"><div class="number" id="totalEvents">0</div><div class="label">Total Events</div></div>
-            <div class="analytics-box"><div class="number" id="leaderboardViews">0</div><div class="label">Leaderboard Views</div></div>
-            <div class="analytics-box"><div class="number" id="timesLogged">0</div><div class="label">Times Logged</div></div>
+            <div class="analytics-box"><div class="number" id="totalEvents">0</div><div class="label">Events</div></div>
+            <div class="analytics-box"><div class="number" id="leaderboardViews">0</div><div class="label">LB Views</div></div>
+            <div class="analytics-box"><div class="number" id="timesLogged">0</div><div class="label">Times</div></div>
             <div class="analytics-box"><div class="number" id="errorCount">0</div><div class="label">Errors</div></div>
           </div>
         </div>
@@ -253,7 +273,19 @@
             <div class="trend-item"><div class="value" id="myGoalRate">-</div><div class="label">Goals</div></div>
           </div>
         </div>
-        <div class="training-plan-card"><h2>📅 This Week's Training</h2><div id="trainingPlanContent"><p class="empty-state">Loading...</p></div></div>
+        
+        <div class="achievements-card">
+          <h2>🏅 Achievements</h2>
+          <div class="streak-display">
+            <div class="streak-item"><div class="fire">🔥</div><div class="number" id="currentStreak">0</div><div class="label">Day Streak</div></div>
+            <div class="streak-item"><div class="fire">⭐</div><div class="number" id="longestStreak">0</div><div class="label">Best Streak</div></div>
+          </div>
+          <div class="challenge-box" id="weeklyChallenge"></div>
+          <h4 style="margin-bottom:12px;color:#fbbf24;">Badges</h4>
+          <div class="badges-grid" id="badgesGrid"></div>
+        </div>
+        
+        <div class="training-plan-card"><h2>📅 Training</h2><div id="trainingPlanContent"><p class="empty-state">Loading...</p></div></div>
         <div class="insights-card"><h2>📊 Insights</h2><div id="insightsContent"><p class="empty-state">Loading...</p></div></div>
         <div class="card"><h2>📈 Progress</h2><div id="progressList"></div></div>
         <div class="card">
@@ -263,7 +295,7 @@
               <div class="form-group"><label>Stroke</label><select id="videoStroke"><option value="Freestyle">Freestyle</option><option value="Backstroke">Backstroke</option><option value="Breaststroke">Breaststroke</option><option value="Butterfly">Butterfly</option><option value="IM">IM</option></select></div>
               <div class="upload-area" id="uploadArea">
                 <input type="file" id="videoFile" accept="video/*">
-                <div style="font-size:2rem;margin-bottom:10px;">📹</div>
+                <div style="font-size:2rem;">📹</div>
                 <div style="color:#94a3b8;font-size:0.85rem;">Tap to select</div>
                 <div class="file-selected" id="fileSelected"></div>
               </div>
@@ -302,16 +334,18 @@
   <script>
     let currentUser = null, accessToken = null, selectedFile = null;
 
-    // Analytics helper
     async function track(eventType, eventData = {}) {
       if (!currentUser) return;
-      try {
-        await fetch('/api/analytics/track', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userId: currentUser.id, eventType, eventData })
-        });
-      } catch (e) { console.log('Track failed:', e); }
+      try { await fetch('/api/analytics/track', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: currentUser.id, eventType, eventData }) }); } catch (e) {}
+    }
+
+    function showBadgeNotification(badge) {
+      const notif = document.getElementById('badgeNotification');
+      document.getElementById('badgeNotifIcon').textContent = badge.icon;
+      document.getElementById('badgeNotifTitle').textContent = badge.name;
+      document.getElementById('badgeNotifDesc').textContent = badge.desc;
+      notif.classList.add('show');
+      setTimeout(() => notif.classList.remove('show'), 3000);
     }
 
     function showTab(tab) {
@@ -319,8 +353,6 @@
       event.target.classList.add('active');
       document.getElementById('loginForm').style.display = tab === 'login' ? 'block' : 'none';
       document.getElementById('signupForm').style.display = tab === 'signup' ? 'block' : 'none';
-      document.getElementById('error').textContent = '';
-      document.getElementById('success').textContent = '';
     }
 
     function formatTime(s) { return `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, '0')}`; }
@@ -347,7 +379,20 @@
       document.getElementById('userName').textContent = currentUser.name;
       document.getElementById('userRole').textContent = currentUser.role;
       if (currentUser.role === 'coach') { document.getElementById('coachSection').style.display = 'block'; loadCoachDashboard(); loadCoachLeaderboard(); loadAnalytics(); }
-      else { document.getElementById('swimmerSection').style.display = 'block'; loadSwimmerLeaderboard(); loadTrainingPlan(); loadInsights(); loadProgress(); loadTimes(); loadFeedback(); }
+      else { document.getElementById('swimmerSection').style.display = 'block'; loadSwimmerLeaderboard(); loadAchievements(); loadTrainingPlan(); loadInsights(); loadProgress(); loadTimes(); loadFeedback(); }
+    }
+
+    async function loadAchievements() {
+      const res = await fetch(`/api/achievements/${currentUser.id}`);
+      const data = await res.json();
+      document.getElementById('currentStreak').textContent = data.streak.current_streak || 0;
+      document.getElementById('longestStreak').textContent = data.streak.longest_streak || 0;
+      
+      const ch = data.challenge;
+      const pct = Math.min(100, (ch.progress / ch.target) * 100);
+      document.getElementById('weeklyChallenge').innerHTML = `<h4>🎯 Weekly Challenge</h4><div class="challenge-name">${ch.name}</div><div class="challenge-desc">${ch.desc}</div><div class="challenge-progress"><div class="challenge-progress-bar" style="width:${pct}%"></div></div><div class="challenge-status"><span>${ch.progress}/${ch.target}</span><span>${ch.completed ? '✅ Complete!' : 'In Progress'}</span></div>`;
+      
+      document.getElementById('badgesGrid').innerHTML = data.all.map(b => `<div class="badge-item ${b.earned ? 'earned' : 'locked'}"><div class="badge-icon">${b.icon}</div><div class="badge-name">${b.name}</div></div>`).join('');
     }
 
     async function loadAnalytics() {
@@ -367,11 +412,8 @@
       document.getElementById('behindCount').textContent = data.summary.behind;
       document.getElementById('noGoalsCount').textContent = data.summary.noGoals;
       const list = document.getElementById('coachSwimmersList');
-      if (data.swimmers.length === 0) { list.innerHTML = '<p class="empty-state">No swimmers</p>'; return; }
-      list.innerHTML = data.swimmers.map(s => {
-        const planPreview = s.currentPlan ? `<div class="coach-plan-preview"><div class="label">📅 Focus</div><div>${s.currentPlan.plan.weekFocus}</div></div>` : '';
-        return `<div class="swimmer-detail-card ${s.status}"><div class="swimmer-detail-header"><h4>${s.name}</h4><span class="status-badge status-${s.status}">${s.status === 'ahead' ? '✓' : s.status === 'behind' ? '↓' : '-'}</span></div><div class="swimmer-detail-stats"><span>Goals<strong>${s.goalsAhead}/${s.goalsCount}</strong></span><span>Sessions<strong>${s.sessionsThisMonth}</strong></span></div>${planPreview}</div>`;
-      }).join('');
+      if (!data.swimmers.length) { list.innerHTML = '<p class="empty-state">No swimmers</p>'; return; }
+      list.innerHTML = data.swimmers.map(s => `<div class="swimmer-detail-card ${s.status}"><div class="swimmer-detail-header"><h4>${s.name}</h4><span class="status-badge status-${s.status}">${s.status === 'ahead' ? '✓' : s.status === 'behind' ? '↓' : '-'}</span></div><div class="swimmer-detail-stats"><span>Goals <strong>${s.goalsAhead}/${s.goalsCount}</strong></span><span>Sessions <strong>${s.sessionsThisMonth}</strong></span><span>🔥 <strong>${s.streak}</strong></span><span>🏅 <strong>${s.badges}</strong></span></div></div>`).join('');
     }
 
     async function loadCoachLeaderboard() {
@@ -379,7 +421,7 @@
       const data = await res.json();
       track('leaderboard_view', { role: 'coach' });
       const c = document.getElementById('coachLeaderboard');
-      if (!data.enabled || data.leaderboard.length === 0) { c.innerHTML = '<p class="empty-state">Add swimmers</p>'; return; }
+      if (!data.enabled || !data.leaderboard.length) { c.innerHTML = '<p class="empty-state">Add swimmers</p>'; return; }
       c.innerHTML = data.leaderboard.map(s => `<div class="leaderboard-entry ${s.rank <= 3 ? 'rank-' + s.rank : ''}"><div class="rank-badge ${s.rank > 3 ? 'default' : ''}">${s.rank}</div><div class="leaderboard-info"><div class="leaderboard-name">${s.name}</div><div class="leaderboard-stats"><span>📈${s.improvementPct > 0 ? '+' : ''}${s.improvementPct}%</span><span>🎯${s.goalCompletionRate}%</span></div></div><div class="leaderboard-score"><div class="score">${s.compositeScore}</div></div></div>`).join('');
     }
 
@@ -388,16 +430,15 @@
       const res = await fetch(`/api/leaderboard/${currentUser.coach_id}`);
       const data = await res.json();
       track('leaderboard_view', { role: 'swimmer' });
-      if (!data.enabled || data.leaderboard.length === 0) return;
+      if (!data.enabled || !data.leaderboard.length) return;
       const me = data.leaderboard.find(s => s.id === currentUser.id);
       if (!me) return;
       document.getElementById('myRankSection').style.display = 'block';
       document.getElementById('myRank').textContent = `#${me.rank}`;
       document.getElementById('myDelta').textContent = me.deltaFromTop > 0 ? `${me.deltaFromTop} pts from #1` : '🥇 Leading!';
       document.getElementById('myDelta').className = `delta ${me.deltaFromTop > 0 ? 'behind' : 'top'}`;
-      const imp = document.getElementById('myImprovement');
-      imp.textContent = `${me.improvementPct > 0 ? '+' : ''}${me.improvementPct}%`;
-      imp.className = `value ${me.improvementPct > 0 ? 'positive' : me.improvementPct < 0 ? 'negative' : 'neutral'}`;
+      document.getElementById('myImprovement').textContent = `${me.improvementPct > 0 ? '+' : ''}${me.improvementPct}%`;
+      document.getElementById('myImprovement').className = `value ${me.improvementPct > 0 ? 'positive' : me.improvementPct < 0 ? 'negative' : ''}`;
       document.getElementById('myConsistency').textContent = `${me.consistencyScore}%`;
       document.getElementById('myGoalRate').textContent = `${me.goalCompletionRate}%`;
     }
@@ -406,12 +447,10 @@
       const res = await fetch(`/api/training-plan/${currentUser.id}`);
       const data = await res.json();
       const c = document.getElementById('trainingPlanContent');
-      if (!data.ready) { c.innerHTML = `<div class="missing-data"><div class="icon">📋</div><h4>Complete to unlock:</h4><div class="missing-item ${data.missing.goals ? 'needed' : 'done'}">${data.missing.goals ? '❌' : '✅'} Goal</div><div class="missing-item ${data.missing.times ? 'needed' : 'done'}">${data.missing.times ? '❌' : '✅'} Times</div><div class="missing-item ${data.missing.video ? 'needed' : 'done'}">${data.missing.video ? '❌' : '✅'} Video</div></div>`; return; }
+      if (!data.ready) { c.innerHTML = `<div class="missing-data"><h4>Complete to unlock:</h4><div class="missing-item ${data.missing.goals ? 'needed' : 'done'}">${data.missing.goals ? '❌' : '✅'} Goal</div><div class="missing-item ${data.missing.times ? 'needed' : 'done'}">${data.missing.times ? '❌' : '✅'} Times</div><div class="missing-item ${data.missing.video ? 'needed' : 'done'}">${data.missing.video ? '❌' : '✅'} Video</div></div>`; return; }
       const p = data.plan;
-      let html = `<div class="plan-header"><div class="week">Week of ${data.weekStart}</div><div class="focus">${p.weekFocus}</div><div class="intensity"><span class="intensity-badge intensity-${p.intensity}">${p.intensity.toUpperCase()}</span></div></div><div class="focus-areas">${p.focusAreas.map(f => `<span class="focus-tag">${f}</span>`).join('')}</div>`;
-      p.workouts.forEach(w => {
-        html += `<div class="workout-day"><div class="day-header"><span class="day-name">${w.day}</span><span class="day-type">${w.type}</span><span class="day-distance">${w.totalDistance}</span></div><div class="workout-section"><div class="section-label">Warm-up</div><div class="workout-set"><div class="set-name">${w.warmup}</div></div></div><div class="workout-section"><div class="section-label">Main</div>${w.main.map(m => `<div class="workout-set"><div class="set-name">${m.set}</div><div class="set-details">Rest: ${m.rest} | ${m.focus}</div></div>`).join('')}</div><div class="workout-section"><div class="section-label">Cool-down</div><div class="workout-set"><div class="set-name">${w.cooldown}</div></div></div></div>`;
-      });
+      let html = `<div class="plan-header"><div class="week">Week of ${data.weekStart}</div><div class="focus">${p.weekFocus}</div><span class="intensity-badge intensity-${p.intensity}">${p.intensity.toUpperCase()}</span></div><div class="focus-areas">${p.focusAreas.map(f => `<span class="focus-tag">${f}</span>`).join('')}</div>`;
+      p.workouts.forEach(w => { html += `<div class="workout-day"><div class="day-header"><span class="day-name">${w.day}</span><span class="day-type">${w.type}</span><span class="day-distance">${w.totalDistance}</span></div><div class="workout-section"><div class="section-label">Warm-up</div><div class="workout-set"><div class="set-name">${w.warmup}</div></div></div><div class="workout-section"><div class="section-label">Main</div>${w.main.map(m => `<div class="workout-set"><div class="set-name">${m.set}</div><div class="set-details">Rest: ${m.rest} | ${m.focus}</div></div>`).join('')}</div><div class="workout-section"><div class="section-label">Cool-down</div><div class="workout-set"><div class="set-name">${w.cooldown}</div></div></div></div>`; });
       html += `<div class="plan-meta"><div class="plan-meta-item"><div class="value">${p.sessionsPerWeek}</div><div class="label">Sessions</div></div><div class="plan-meta-item"><div class="value">${p.totalWeeklyDistance}</div><div class="label">Total</div></div></div><div class="plan-tips"><h4>💡 Tips</h4>${p.tips.map(t => `<div class="tip-item">• ${t}</div>`).join('')}</div>`;
       c.innerHTML = html;
     }
@@ -421,9 +460,7 @@
       const data = await res.json();
       const c = document.getElementById('insightsContent');
       if (data.totalSessions < 3) { c.innerHTML = '<p class="empty-state">Log 3+ sessions</p>'; return; }
-      let html = '';
-      const trendClass = data.paceTrend.direction === 'improving' ? 'trend-up' : data.paceTrend.direction === 'declining' ? 'trend-down' : '';
-      html += `<div class="insight-section"><h4>📈 Pace</h4><div class="insight-value ${trendClass}">${data.paceTrend.description}</div></div>`;
+      let html = `<div class="insight-section"><h4>📈 Pace</h4><div class="insight-value ${data.paceTrend.direction === 'improving' ? 'trend-up' : data.paceTrend.direction === 'declining' ? 'trend-down' : ''}">${data.paceTrend.description}</div></div>`;
       html += `<div class="insight-section"><h4>💪 Consistency</h4><div class="insight-value">${data.consistencyScore}%</div><div class="insight-desc">${data.consistencyDesc}</div></div>`;
       if (data.fatigueSignal?.detected) html += `<div class="fatigue-alert"><h4>⚠️ Fatigue</h4><p>${data.fatigueSignal.recommendation}</p></div>`;
       if (data.goalInsight) html += `<div class="goal-insight ${data.goalInsight.status}"><div class="status">${data.goalInsight.message}</div></div>`;
@@ -442,14 +479,24 @@
       e.preventDefault();
       const res = await fetch('/api/times', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ swimmerId: currentUser.id, stroke: document.getElementById('timeStroke').value, distance: document.getElementById('timeDistance').value, minutes: document.getElementById('timeMinutes').value, seconds: document.getElementById('timeSeconds').value }) });
       const data = await res.json();
-      if (data.error) alert(data.error); else { document.getElementById('timeMinutes').value = ''; document.getElementById('timeSeconds').value = ''; loadTimes(); loadProgress(); loadSwimmerLeaderboard(); loadInsights(); loadTrainingPlan(); }
+      if (data.error) alert(data.error);
+      else {
+        document.getElementById('timeMinutes').value = ''; document.getElementById('timeSeconds').value = '';
+        if (data.newBadges?.length) data.newBadges.forEach(b => showBadgeNotification(b));
+        loadTimes(); loadProgress(); loadSwimmerLeaderboard(); loadInsights(); loadTrainingPlan(); loadAchievements();
+      }
     });
 
     document.getElementById('setGoalForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       const res = await fetch('/api/goals', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ swimmerId: currentUser.id, stroke: document.getElementById('goalStroke').value, distance: document.getElementById('goalDistance').value, targetMinutes: document.getElementById('goalMinutes').value, targetSeconds: document.getElementById('goalSeconds').value }) });
       const data = await res.json();
-      if (data.error) alert(data.error); else { document.getElementById('goalMinutes').value = ''; document.getElementById('goalSeconds').value = ''; loadProgress(); loadSwimmerLeaderboard(); loadInsights(); loadTrainingPlan(); }
+      if (data.error) alert(data.error);
+      else {
+        document.getElementById('goalMinutes').value = ''; document.getElementById('goalSeconds').value = '';
+        if (data.newBadges?.length) data.newBadges.forEach(b => showBadgeNotification(b));
+        loadProgress(); loadSwimmerLeaderboard(); loadInsights(); loadTrainingPlan(); loadAchievements();
+      }
     });
 
     async function loadTimes() {
@@ -461,7 +508,7 @@
     async function loadProgress() {
       const res = await fetch(`/api/progress/${currentUser.id}`);
       const data = await res.json();
-      document.getElementById('progressList').innerHTML = data.progress.length === 0 ? '<p class="empty-state">Set a goal</p>' : data.progress.map(p => `<div style="background:rgba(255,255,255,0.03);padding:14px;border-radius:10px;margin-bottom:10px;"><div style="display:flex;justify-content:space-between;margin-bottom:8px;"><h4 style="font-size:0.95rem;">${p.goal.stroke} ${p.goal.distance}m</h4><span class="status-badge status-${p.status}">${p.status === 'ahead' ? '✓' : p.status === 'behind' ? '↓' : '-'}</span></div><div class="progress-stats"><span>Target<strong>${formatTime(p.goal.target_seconds)}</strong></span><span>Best<strong>${p.bestTime ? formatTime(p.bestTime) : '-'}</strong></span></div></div>`).join('');
+      document.getElementById('progressList').innerHTML = data.progress.length === 0 ? '<p class="empty-state">Set a goal</p>' : data.progress.map(p => `<div style="background:rgba(255,255,255,0.03);padding:14px;border-radius:10px;margin-bottom:10px;"><div style="display:flex;justify-content:space-between;margin-bottom:8px;"><h4>${p.goal.stroke} ${p.goal.distance}m</h4><span class="status-badge status-${p.status}">${p.status === 'ahead' ? '✓' : p.status === 'behind' ? '↓' : '-'}</span></div><div style="display:flex;gap:16px;font-size:0.8rem;color:#94a3b8;"><span>Target <strong style="color:white">${formatTime(p.goal.target_seconds)}</strong></span><span>Best <strong style="color:white">${p.bestTime ? formatTime(p.bestTime) : '-'}</strong></span></div></div>`).join('');
     }
 
     const uploadArea = document.getElementById('uploadArea');
@@ -482,13 +529,18 @@
       const data = await res.json();
       document.getElementById('processingState').style.display = 'none';
       document.getElementById('uploadContainer').style.display = 'block';
-      if (data.error) alert(data.error); else { selectedFile = null; document.getElementById('fileSelected').textContent = ''; uploadBtn.disabled = true; loadFeedback(); loadTrainingPlan(); }
+      if (data.error) alert(data.error);
+      else {
+        selectedFile = null; document.getElementById('fileSelected').textContent = ''; uploadBtn.disabled = true;
+        if (data.newBadges?.length) data.newBadges.forEach(b => showBadgeNotification(b));
+        loadFeedback(); loadTrainingPlan(); loadAchievements();
+      }
     });
 
     async function loadFeedback() {
       const res = await fetch(`/api/video/feedback/${currentUser.id}`);
       const data = await res.json();
-      document.getElementById('feedbackList').innerHTML = data.feedbacks.length === 0 ? '<p class="empty-state">Upload video</p>' : data.feedbacks.slice(0, 2).map(f => `<div class="feedback-card"><h4>${f.stroke} • ${new Date(f.created_at).toLocaleDateString()}</h4><div style="display:flex;align-items:center;gap:8px;margin-top:12px;"><span class="score-badge">${f.feedback.overall_score}/10</span></div><div class="priority-box"><label>Focus</label><p>${f.feedback.priority_focus}</p></div></div>`).join('');
+      document.getElementById('feedbackList').innerHTML = data.feedbacks.length === 0 ? '<p class="empty-state">Upload video</p>' : data.feedbacks.slice(0, 2).map(f => `<div class="feedback-card"><h4>${f.stroke} • ${new Date(f.created_at).toLocaleDateString()}</h4><span class="score-badge">${f.feedback.overall_score}/10</span><div class="priority-box"><label>Focus</label><p>${f.feedback.priority_focus}</p></div></div>`).join('');
     }
 
     function logout() {
