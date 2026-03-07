@@ -2,6 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const path = require('path');
 const multer = require('multer');
+const { generateDistanceWorkouts } = require("./workouts");
 const { createClient } = require('@supabase/supabase-js');
 
 const app = express();
@@ -466,23 +467,6 @@ function generatePlan(goal, feedback, goalGap, consistency, bestTime) {
   return { weekFocus: `${stroke} ${distance}m - ${intensity}`, focusAreas: focusAreas.slice(0, 4), intensity, goalGap: goalGap > 0 ? `${goalGap}s to drop` : 'Goal achieved!', workouts, totalWeeklyDistance: workouts.reduce((a, w) => a + parseInt(w.totalDistance), 0) + 'm', sessionsPerWeek: workouts.length, tips };
 }
 
-function generateDistanceWorkouts(stroke, distance, goalGap, focus, intensity) {
-  const workouts = [];
-  if (distance === 50) {
-    workouts.push({ day: 'Monday', type: 'Power', warmup: '300m easy', main: [{ set: `12x25m ${stroke} FAST`, rest: '30s', focus: 'Speed' }], cooldown: '200m easy', totalDistance: '1100m', focus: 'Sprint' });
-    workouts.push({ day: 'Wednesday', type: 'Speed', warmup: '400m drill', main: [{ set: `6x50m ${stroke} descend`, rest: '40s', focus: 'Build' }], cooldown: '200m easy', totalDistance: '1000m', focus: 'Speed' });
-    workouts.push({ day: 'Friday', type: 'Race', warmup: '300m', main: [{ set: `6x50m ${stroke} race pace`, rest: '2min', focus: 'Goal' }], cooldown: '200m easy', totalDistance: '800m', focus: 'Race' });
-  } else if (distance === 100) {
-    workouts.push({ day: 'Monday', type: 'Speed', warmup: '400m easy', main: [{ set: `8x50m ${stroke} fast`, rest: '30s', focus: 'Speed' }], cooldown: '200m easy', totalDistance: '1000m', focus: 'Speed' });
-    workouts.push({ day: 'Wednesday', type: 'Threshold', warmup: '300m', main: [{ set: `6x100m ${stroke}`, rest: '20s', focus: 'Aerobic' }], cooldown: '200m easy', totalDistance: '1100m', focus: 'Threshold' });
-    workouts.push({ day: 'Friday', type: 'Race', warmup: '400m', main: [{ set: `3x100m ${stroke} goal pace`, rest: '2min', focus: 'Target' }], cooldown: '200m easy', totalDistance: '900m', focus: 'Race' });
-  } else {
-    workouts.push({ day: 'Monday', type: 'Endurance', warmup: '500m', main: [{ set: `4x${distance}m ${stroke}`, rest: '30s', focus: 'Aerobic' }], cooldown: '300m easy', totalDistance: `${4 * distance + 800}m`, focus: 'Endurance' });
-    workouts.push({ day: 'Wednesday', type: 'Pacing', warmup: '400m', main: [{ set: `6x${distance / 2}m negative split`, rest: '25s', focus: 'Pacing' }], cooldown: '300m easy', totalDistance: `${3 * distance + 700}m`, focus: 'Pacing' });
-    workouts.push({ day: 'Friday', type: 'Race', warmup: '500m', main: [{ set: `2x${distance}m goal pace`, rest: '3min', focus: 'Race sim' }], cooldown: '300m easy', totalDistance: `${2 * distance + 800}m`, focus: 'Race' });
-  }
-  return workouts;
-}
 
 function formatTime(s) { if (!s) return '-'; return `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, '0')}`; }
 
