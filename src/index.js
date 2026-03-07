@@ -409,13 +409,14 @@ app.get('/api/training-plan/:swimmerId', async (req, res) => {
     const swimmerId = req.params.swimmerId;
     const weekStart = getWeekStart(new Date());
     const month = new Date().toISOString().slice(0, 7);
-    const { data: goals } = await supabase.from('goals').select('*').eq('swimmer_id', swimmerId).eq('month', month).order('created_at', { ascending: false });
+    const { data: profile } = await supabase.from("profiles").select("active_goal_id").eq("id", swimmerId).single();
+    const { data: goals } = await supabase.from("goals").select("*").eq("swimmer_id", swimmerId).order("created_at", { ascending: false });
     const { data: times } = await supabase.from('swim_times').select('*').eq('swimmer_id', swimmerId);
     const { data: feedbacks } = await supabase.from('video_feedback').select('*').eq('swimmer_id', swimmerId).order('created_at', { ascending: false });
     if (!goals?.length || !times?.length) {
       return res.json({ ready: false, missing: { goals: !goals?.length, times: !times?.length } });
     }
-    const goal = goals[0];
+    const goal = profile?.active_goal_id ? goals.find(g => g.id === profile.active_goal_id) || goals[0] : goals[0];
     const feedback = feedbacks?.[0] || null;
     const relevantTimes = times.filter(t => t.stroke === goal.stroke && t.distance === goal.distance);
     const bestTime = relevantTimes.length ? Math.min(...relevantTimes.map(t => t.time_seconds)) : null;
@@ -766,6 +767,65 @@ app.post('/api/requests/unlink', async (req, res) => {
       .eq('id', swimmerId);
     
     if (error) return res.status(400).json({ error: error.message });
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ========== ACTIVE GOAL SELECTOR ==========
+
+// Get all goals (not just current month)
+app.get('/api/goals/all/:swimmerId', async (req, res) => {
+  try {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('active_goal_id')
+      .eq('id', req.params.swimmerId)
+      .single();
+    
+    const { data, error } = await supabase
+      .from('goals')
+      .select('*')
+      .eq('swimmer_id', req.params.swimmerId)
+      .order('created_at', { ascending: false });
+    
+    if (error) return res.status(400).json({ error: error.message });
+    
+    // Mark active goal
+    const goals = (data || []).map(g => ({
+      ...g,
+      isActive: g.id === profile?.active_goal_id
+    }));
+    
+    // If no active goal set but goals exist, first one is default active
+    if (goals.length > 0 && !goals.some(g => g.isActive)) {
+      goals[0].isActive = true;
+    }
+    
+    res.json({ goals, activeGoalId: profile?.active_goal_id });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Set active goal
+app.post('/api/goals/set-active', async (req, res) => {
+  try {
+    const { swimmerId, goalId } = req.body;
+    
+    const { error } = await supabase
+      .from('profiles')
+      .update({ active_goal_id: goalId })
+      .eq('id', swimmerId);
+    
+    if (error) return res.status(400).json({ error: error.message });
+    
+    // Clear training plan so it regenerates with new goal
+    const weekStart = getWeekStart(new Date());
+    await supabase
+      .from('training_plans')
+      .delete()
+      .eq('swimmer_id', swimmerId)
+      .eq('week_start', weekStart);
+    
+    await trackEvent(swimmerId, 'active_goal_changed', { goalId });
     res.json({ success: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });

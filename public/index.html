@@ -285,7 +285,7 @@
         
         <div class="training-plan-card"><h2>📅 Training</h2><div id="trainingPlanContent"><p class="empty-state">Loading...</p></div></div>
         <div class="insights-card"><h2>📊 Insights</h2><div id="insightsContent"><p class="empty-state">Loading...</p></div></div>
-        <div class="card"><h2>📈 Progress</h2><div id="progressList"></div></div>
+        <div class="card"><h2>🎯 Goals</h2><p style="font-size:0.8rem;color:#94a3b8;margin-bottom:12px;">Tap a goal to make it active for training</p><div id="goalsList"></div></div>
         <div class="card">
           <h2>🎥 Upload Video</h2>
           <div id="uploadContainer">
@@ -393,7 +393,7 @@
         loadAchievements();
         loadTrainingPlan();
         loadInsights();
-        loadProgress();
+        loadGoals();
         loadTimes();
         loadFeedback();
       }
@@ -612,10 +612,10 @@
       c.innerHTML = html;
     }
 
-    async function loadProgress() {
-      const res = await fetch(`/api/progress/${currentUser.id}`);
+    async function loadGoals() {
+      const res = await fetch(`/api/goals/all/${currentUser.id}`);
       const data = await res.json();
-      document.getElementById('progressList').innerHTML = data.progress.length === 0 ? '<p class="empty-state">Set a goal to track progress</p>' : data.progress.map(p => `<div style="background:rgba(255,255,255,0.03);padding:14px;border-radius:10px;margin-bottom:10px;"><div style="display:flex;justify-content:space-between;margin-bottom:8px;"><h4>${p.goal.stroke} ${p.goal.distance}m</h4><span class="status-badge status-${p.status}">${p.status === 'ahead' ? '✓' : p.status === 'behind' ? '↓' : '-'}</span></div><div style="display:flex;gap:16px;font-size:0.8rem;color:#94a3b8;"><span>Target <strong style="color:white">${formatTime(p.goal.target_seconds)}</strong></span><span>Best <strong style="color:white">${p.bestTime ? formatTime(p.bestTime) : '-'}</strong></span></div></div>`).join('');
+      document.getElementById('goalsList').innerHTML = data.goals.length === 0 ? '<p class="empty-state">Set a goal to start</p>' : data.goals.map(g => `<div onclick="setActiveGoal('${g.id}')" style="background:${g.isActive ? 'rgba(34,197,94,0.15)' : 'rgba(255,255,255,0.03)'};padding:14px;border-radius:10px;margin-bottom:10px;cursor:pointer;border:${g.isActive ? '2px solid #22c55e' : '1px solid transparent'};"><div style="display:flex;justify-content:space-between;margin-bottom:8px;"><h4>${g.stroke} ${g.distance}m</h4>${g.isActive ? '<span style="color:#22c55e;font-size:0.8rem;">✓ Active</span>' : ''}</div><div style="font-size:0.85rem;color:#94a3b8;">Target: ${formatTime(g.target_seconds)}</div></div>`).join('');
     }
 
     async function loadTimes() {
@@ -638,7 +638,7 @@
       else {
         document.getElementById('timeMinutes').value = ''; document.getElementById('timeSeconds').value = '';
         if (data.newBadges?.length) data.newBadges.forEach(b => showBadgeNotification(b));
-        loadTimes(); loadProgress(); loadSwimmerLeaderboard(); loadInsights(); loadTrainingPlan(); loadAchievements();
+        loadTimes(); loadGoals(); loadSwimmerLeaderboard(); loadInsights(); loadTrainingPlan(); loadAchievements();
       }
     });
 
@@ -650,7 +650,7 @@
       else {
         document.getElementById('goalMinutes').value = ''; document.getElementById('goalSeconds').value = '';
         if (data.newBadges?.length) data.newBadges.forEach(b => showBadgeNotification(b));
-        loadProgress(); loadSwimmerLeaderboard(); loadInsights(); loadTrainingPlan(); loadAchievements();
+        loadGoals(); loadSwimmerLeaderboard(); loadInsights(); loadTrainingPlan(); loadAchievements();
       }
     });
 
@@ -694,3 +694,15 @@
   </script>
 </body>
 </html>
+<script>
+async function setActiveGoal(goalId) {
+  const res = await fetch('/api/goals/set-active', { 
+    method: 'POST', 
+    headers: { 'Content-Type': 'application/json' }, 
+    body: JSON.stringify({ swimmerId: currentUser.id, goalId }) 
+  });
+  const data = await res.json();
+  if (data.error) alert(data.error);
+  else { loadGoals(); loadTrainingPlan(); }
+}
+</script>
