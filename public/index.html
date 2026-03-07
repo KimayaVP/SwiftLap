@@ -226,6 +226,8 @@
         </div>
         <div class="leaderboard-card"><h2>🏆 Leaderboard</h2><div id="coachLeaderboard"></div></div>
         <div class="card"><h2>👥 Swimmers</h2><div id="coachSwimmersList"></div></div>
+        <div class="card"><h2>📦 Batches</h2><div id="batchesList"></div><div style="margin-top:12px;"><button class="btn btn-primary btn-small" onclick="showCreateBatch()">Create Batch</button></div><div id="createBatchForm" style="display:none;margin-top:12px;"><input type="text" id="newBatchName" placeholder="Batch name (e.g. Morning Squad)" style="width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.05);color:white;margin-bottom:8px;"><button class="btn btn-success btn-small" onclick="createBatch()">Create</button><button class="btn btn-secondary btn-small" onclick="hideCreateBatch()">Cancel</button></div></div>
+        <div id="batchDetailSection" class="card" style="display:none;"><h2>📦 <span id="batchDetailName"></span></h2><button class="btn btn-secondary btn-small" style="margin-bottom:12px;" onclick="hideBatchDetail()">← Back</button><div id="batchMembers"></div><div style="margin-top:12px;"><select id="addSwimmerSelect" style="padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.05);color:white;margin-right:8px;"><option value="">Add swimmer...</option></select><button class="btn btn-primary btn-small" onclick="addSwimmerToBatch()">Add</button></div><h3 style="margin-top:20px;margin-bottom:12px;color:#fbbf24;">🏆 Batch Leaderboard</h3><div id="batchLeaderboard"></div></div>
         <div class="card">
           <h2>📨 Invite Swimmer</h2>
           <p style="font-size:0.85rem;color:#94a3b8;margin-bottom:12px;">Enter swimmer's email to send invite</p>
@@ -723,6 +725,70 @@
     function hideGroupLeaderboard() {
       document.getElementById("groupLeaderboardSection").style.display = "none";
       document.getElementById("groupsSection").style.display = "block";
+    }
+
+    // ========== COACH BATCHES ==========
+    let currentBatchId = null;
+    async function loadBatches() {
+      const res = await fetch(`/api/batches/${currentUser.id}`);
+      const data = await res.json();
+      const container = document.getElementById("batchesList");
+      if (!data.batches?.length) { container.innerHTML = "<p class=\"empty-state\">No batches yet</p>"; return; }
+      container.innerHTML = data.batches.map(b => `<div style="background:rgba(255,255,255,0.03);padding:12px;border-radius:10px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;"><div><div style="font-weight:600;">${b.name}</div><div style="font-size:0.75rem;color:#94a3b8;">${b.memberCount} swimmers</div></div><button class="btn btn-primary btn-small" onclick="viewBatchDetail('${b.id}', '${b.name}')">Manage</button></div>`).join("");
+    }
+    function showCreateBatch() { document.getElementById("createBatchForm").style.display = "block"; }
+    function hideCreateBatch() { document.getElementById("createBatchForm").style.display = "none"; }
+    async function createBatch() {
+      const name = document.getElementById("newBatchName").value;
+      if (!name) return alert("Enter a batch name");
+      const res = await fetch("/api/batches/create", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, coachId: currentUser.id }) });
+      const data = await res.json();
+      if (data.error) alert(data.error);
+      else { document.getElementById("newBatchName").value = ""; hideCreateBatch(); loadBatches(); }
+    }
+    async function viewBatchDetail(batchId, batchName) {
+      currentBatchId = batchId;
+      document.getElementById("batchDetailName").textContent = batchName;
+      document.getElementById("batchDetailSection").style.display = "block";
+      await loadBatchMembers(batchId);
+      await loadBatchLeaderboard(batchId);
+      await loadAvailableSwimmers(batchId);
+    }
+    function hideBatchDetail() { document.getElementById("batchDetailSection").style.display = "none"; currentBatchId = null; }
+    async function loadBatchMembers(batchId) {
+      const res = await fetch(`/api/batches/${batchId}/leaderboard`);
+      const data = await res.json();
+      const container = document.getElementById("batchMembers");
+      if (!data.leaderboard?.length) { container.innerHTML = "<p class=\"empty-state\">No swimmers in this batch</p>"; return; }
+      container.innerHTML = data.leaderboard.map(s => `<div style="background:rgba(255,255,255,0.03);padding:10px;border-radius:8px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;"><span>${s.name}</span><button class="btn btn-danger btn-small" onclick="removeFromBatch('${s.id}')">Remove</button></div>`).join("");
+    }
+    async function loadBatchLeaderboard(batchId) {
+      const res = await fetch(`/api/batches/${batchId}/leaderboard`);
+      const data = await res.json();
+      const container = document.getElementById("batchLeaderboard");
+      if (!data.leaderboard?.length) { container.innerHTML = "<p class=\"empty-state\">Add swimmers to see leaderboard</p>"; return; }
+      container.innerHTML = data.leaderboard.map(s => `<div class="leaderboard-entry ${s.rank <= 3 ? "rank-" + s.rank : ""}"><div class="rank-badge ${s.rank > 3 ? "default" : ""}">${s.rank}</div><div class="leaderboard-info"><div class="leaderboard-name">${s.name}</div><div class="leaderboard-stats"><span>📈${s.improvementPct > 0 ? "+" : ""}${s.improvementPct}%</span><span>🎯${s.goalRate}%</span><span>🔥${s.streak}</span></div></div><div class="leaderboard-score"><div class="score">${s.compositeScore}</div></div></div>`).join("");
+    }
+    async function loadAvailableSwimmers(batchId) {
+      const res = await fetch(`/api/batches/${batchId}/available/${currentUser.id}`);
+      const data = await res.json();
+      const select = document.getElementById("addSwimmerSelect");
+      select.innerHTML = "<option value=\"\">Add swimmer...</option>" + (data.available || []).map(s => `<option value="${s.id}">${s.name}</option>`).join("");
+    }
+    async function addSwimmerToBatch() {
+      const swimmerId = document.getElementById("addSwimmerSelect").value;
+      if (!swimmerId || !currentBatchId) return alert("Select a swimmer");
+      const res = await fetch("/api/batches/add-swimmer", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ batchId: currentBatchId, swimmerId }) });
+      const data = await res.json();
+      if (data.error) alert(data.error);
+      else { await loadBatchMembers(currentBatchId); await loadBatchLeaderboard(currentBatchId); await loadAvailableSwimmers(currentBatchId); loadBatches(); }
+    }
+    async function removeFromBatch(swimmerId) {
+      if (!currentBatchId) return;
+      const res = await fetch("/api/batches/remove-swimmer", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ batchId: currentBatchId, swimmerId }) });
+      const data = await res.json();
+      if (data.error) alert(data.error);
+      else { await loadBatchMembers(currentBatchId); await loadBatchLeaderboard(currentBatchId); await loadAvailableSwimmers(currentBatchId); loadBatches(); }
     }
 
     function logout() {
