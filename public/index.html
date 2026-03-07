@@ -315,6 +315,7 @@
           </form>
         </div>
         <div class="card">
+        <div class="card"><h2>⚙️ Settings</h2><div style="display:flex;justify-content:space-between;align-items:center;padding:10px;background:rgba(255,255,255,0.03);border-radius:8px;"><div><div style="font-weight:600;">Show on Leaderboards</div><div style="font-size:0.75rem;color:#94a3b8;">Others can see you in rankings</div></div><label style="position:relative;display:inline-block;width:50px;height:28px;"><input type="checkbox" id="leaderboardToggle" onchange="toggleLeaderboardVisibility()" style="opacity:0;width:0;height:0;"><span style="position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;background:#475569;border-radius:28px;transition:.3s;"></span><span id="toggleSlider" style="position:absolute;content:\;height:20px;width:20px;left:4px;bottom:4px;background:white;border-radius:50%;transition:.3s;"></span></label></div></div>
           <h2>🎯 Set Goal</h2>
           <form id="setGoalForm">
             <div class="form-group"><label>Stroke</label><select id="goalStroke"><option value="Freestyle">Freestyle</option><option value="Backstroke">Backstroke</option><option value="Breaststroke">Breaststroke</option><option value="Butterfly">Butterfly</option><option value="IM">IM</option></select></div>
@@ -789,6 +790,34 @@
       const data = await res.json();
       if (data.error) alert(data.error);
       else { await loadBatchMembers(currentBatchId); await loadBatchLeaderboard(currentBatchId); await loadAvailableSwimmers(currentBatchId); loadBatches(); }
+    }
+
+    // ========== SETTINGS ==========
+    async function loadSettings() {
+      const res = await fetch(`/api/settings/${currentUser.id}`);
+      const data = await res.json();
+      const toggle = document.getElementById("leaderboardToggle");
+      const slider = document.getElementById("toggleSlider");
+      if (toggle && data.settings) {
+        toggle.checked = data.settings.showOnLeaderboard;
+        updateToggleStyle(data.settings.showOnLeaderboard);
+      }
+    }
+    function updateToggleStyle(isOn) {
+      const slider = document.getElementById("toggleSlider");
+      const toggle = document.getElementById("leaderboardToggle");
+      if (slider && toggle) {
+        slider.style.transform = isOn ? "translateX(22px)" : "translateX(0)";
+        toggle.parentElement.querySelector("span").style.background = isOn ? "#22c55e" : "#475569";
+      }
+    }
+    async function toggleLeaderboardVisibility() {
+      const toggle = document.getElementById("leaderboardToggle");
+      const isOn = toggle.checked;
+      updateToggleStyle(isOn);
+      const res = await fetch("/api/settings/leaderboard-visibility", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ swimmerId: currentUser.id, showOnLeaderboard: isOn }) });
+      const data = await res.json();
+      if (data.error) { alert(data.error); toggle.checked = !isOn; updateToggleStyle(!isOn); }
     }
 
     function logout() {

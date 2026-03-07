@@ -309,7 +309,7 @@ app.get('/api/leaderboard/:coachId', async (req, res) => {
     const month = new Date().toISOString().slice(0, 7);
     const prevMonth = new Date(new Date().setMonth(new Date().getMonth() - 1)).toISOString().slice(0, 7);
     const startOfMonth = `${month}-01`, startOfPrev = `${prevMonth}-01`;
-    const { data: swimmers } = await supabase.from('profiles').select('*').eq('coach_id', coachId);
+    const { data: swimmers } = await supabase.from('profiles').select('*').eq('coach_id', coachId).neq('show_on_leaderboard', false);
     if (!swimmers?.length) return res.json({ leaderboard: [], enabled: false });
     const ids = swimmers.map(s => s.id);
     const { data: allTimes } = await supabase.from('swim_times').select('*').in('swimmer_id', ids);
@@ -1186,5 +1186,39 @@ app.delete('/api/batches/:batchId', async (req, res) => {
     
     if (error) return res.status(400).json({ error: error.message });
     res.json({ success: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ========== OPT-IN RANKINGS ==========
+
+// Update leaderboard visibility setting
+app.post('/api/settings/leaderboard-visibility', async (req, res) => {
+  try {
+    const { swimmerId, showOnLeaderboard } = req.body;
+    
+    const { error } = await supabase
+      .from('profiles')
+      .update({ show_on_leaderboard: showOnLeaderboard })
+      .eq('id', swimmerId);
+    
+    if (error) return res.status(400).json({ error: error.message });
+    
+    await trackEvent(swimmerId, 'leaderboard_visibility_changed', { showOnLeaderboard });
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Get swimmer settings
+app.get('/api/settings/:swimmerId', async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('show_on_leaderboard')
+      .eq('id', req.params.swimmerId)
+      .single();
+    
+    if (error) return res.status(400).json({ error: error.message });
+    
+    res.json({ settings: { showOnLeaderboard: data.show_on_leaderboard ?? true } });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
