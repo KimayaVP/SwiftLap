@@ -261,7 +261,7 @@
           <button class="btn btn-secondary btn-small" onclick="hideFindCoach()">Cancel</button>
         </div>
         
-        <div id="myRankSection" class="my-rank-card" style="display:none;">
+        <div class="card" id="groupsSection"><h2>👥 Friend Groups</h2><div id="myGroups"></div><div style="margin-top:12px;"><button class="btn btn-primary btn-small" onclick="showCreateGroup()">Create Group</button><button class="btn btn-secondary btn-small" style="margin-left:8px;" onclick="showJoinGroup()">Join Group</button></div><div id="createGroupForm" style="display:none;margin-top:12px;"><input type="text" id="newGroupName" placeholder="Group name" style="width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.05);color:white;margin-bottom:8px;"><button class="btn btn-success btn-small" onclick="createGroup()">Create</button><button class="btn btn-secondary btn-small" onclick="hideGroupForms()">Cancel</button></div><div id="joinGroupForm" style="display:none;margin-top:12px;"><input type="text" id="joinCode" placeholder="Enter invite code" style="width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.05);color:white;margin-bottom:8px;text-transform:uppercase;"><button class="btn btn-success btn-small" onclick="joinGroup()">Join</button><button class="btn btn-secondary btn-small" onclick="hideGroupForms()">Cancel</button></div></div><div id="groupLeaderboardSection" class="leaderboard-card" style="display:none;"><h2>🏆 <span id="groupLeaderboardName"></span></h2><button class="btn btn-secondary btn-small" style="margin-bottom:12px;" onclick="hideGroupLeaderboard()">← Back</button><div id="groupLeaderboard"></div></div><div id="myRankSection" class="my-rank-card" style="display:none;">
           <div class="rank-label">Your Rank</div>
           <div class="rank-big" id="myRank">-</div>
           <div class="delta" id="myDelta"></div>
@@ -679,6 +679,51 @@
         loadFeedback(); loadTrainingPlan(); loadAchievements();
       }
     });
+
+    // ========== FRIEND GROUPS ==========
+    async function loadGroups() {
+      const res = await fetch(`/api/groups/${currentUser.id}`);
+      const data = await res.json();
+      const container = document.getElementById("myGroups");
+      if (!data.groups?.length) {
+        container.innerHTML = "<p class=\"empty-state\">No groups yet</p>";
+        return;
+      }
+      container.innerHTML = data.groups.map(g => `<div style="background:rgba(255,255,255,0.03);padding:12px;border-radius:10px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;"><div><div style="font-weight:600;">${g.name}</div><div style="font-size:0.75rem;color:#94a3b8;">Code: ${g.invite_code}</div></div><button class="btn btn-primary btn-small" onclick="viewGroupLeaderboard('${g.id}', '${g.name}')">View</button></div>`).join("");
+    }
+    function showCreateGroup() { document.getElementById("createGroupForm").style.display = "block"; document.getElementById("joinGroupForm").style.display = "none"; }
+    function showJoinGroup() { document.getElementById("joinGroupForm").style.display = "block"; document.getElementById("createGroupForm").style.display = "none"; }
+    function hideGroupForms() { document.getElementById("createGroupForm").style.display = "none"; document.getElementById("joinGroupForm").style.display = "none"; }
+    async function createGroup() {
+      const name = document.getElementById("newGroupName").value;
+      if (!name) return alert("Enter a group name");
+      const res = await fetch("/api/groups/create", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, swimmerId: currentUser.id }) });
+      const data = await res.json();
+      if (data.error) alert(data.error);
+      else { alert(`Group created! Invite code: ${data.group.invite_code}`); document.getElementById("newGroupName").value = ""; hideGroupForms(); loadGroups(); }
+    }
+    async function joinGroup() {
+      const code = document.getElementById("joinCode").value;
+      if (!code) return alert("Enter an invite code");
+      const res = await fetch("/api/groups/join", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ code, swimmerId: currentUser.id }) });
+      const data = await res.json();
+      if (data.error) alert(data.error);
+      else { alert(`Joined ${data.group.name}!`); document.getElementById("joinCode").value = ""; hideGroupForms(); loadGroups(); }
+    }
+    async function viewGroupLeaderboard(groupId, groupName) {
+      document.getElementById("groupsSection").style.display = "none";
+      document.getElementById("groupLeaderboardSection").style.display = "block";
+      document.getElementById("groupLeaderboardName").textContent = groupName;
+      const res = await fetch(`/api/groups/${groupId}/leaderboard`);
+      const data = await res.json();
+      const container = document.getElementById("groupLeaderboard");
+      if (!data.leaderboard?.length) { container.innerHTML = "<p class=\"empty-state\">No members yet</p>"; return; }
+      container.innerHTML = data.leaderboard.map(s => `<div class="leaderboard-entry ${s.rank <= 3 ? "rank-" + s.rank : ""}"><div class="rank-badge ${s.rank > 3 ? "default" : ""}">${s.rank}</div><div class="leaderboard-info"><div class="leaderboard-name">${s.name}</div><div class="leaderboard-stats"><span>📈${s.improvementPct > 0 ? "+" : ""}${s.improvementPct}%</span><span>🎯${s.goalRate}%</span><span>🔥${s.streak}</span></div></div><div class="leaderboard-score"><div class="score">${s.compositeScore}</div></div></div>`).join("");
+    }
+    function hideGroupLeaderboard() {
+      document.getElementById("groupLeaderboardSection").style.display = "none";
+      document.getElementById("groupsSection").style.display = "block";
+    }
 
     function logout() {
       track('logout', {});
