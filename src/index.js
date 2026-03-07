@@ -412,11 +412,11 @@ app.get('/api/training-plan/:swimmerId', async (req, res) => {
     const { data: goals } = await supabase.from('goals').select('*').eq('swimmer_id', swimmerId).eq('month', month).order('created_at', { ascending: false });
     const { data: times } = await supabase.from('swim_times').select('*').eq('swimmer_id', swimmerId);
     const { data: feedbacks } = await supabase.from('video_feedback').select('*').eq('swimmer_id', swimmerId).order('created_at', { ascending: false });
-    if (!goals?.length || !times?.length || !feedbacks?.length) {
-      return res.json({ ready: false, missing: { goals: !goals?.length, times: !times?.length, video: !feedbacks?.length } });
+    if (!goals?.length || !times?.length) {
+      return res.json({ ready: false, missing: { goals: !goals?.length, times: !times?.length } });
     }
     const goal = goals[0];
-    const feedback = feedbacks[0];
+    const feedback = feedbacks?.[0] || null;
     const relevantTimes = times.filter(t => t.stroke === goal.stroke && t.distance === goal.distance);
     const bestTime = relevantTimes.length ? Math.min(...relevantTimes.map(t => t.time_seconds)) : null;
     const goalGap = bestTime ? bestTime - goal.target_seconds : 15;
@@ -573,7 +573,7 @@ app.get('/api/race-plan/:swimmerId', async (req, res) => {
     const { data: goals } = await supabase.from('goals').select('*').eq('swimmer_id', req.params.swimmerId).eq('month', month).order('created_at', { ascending: false });
     const { data: times } = await supabase.from('swim_times').select('*').eq('swimmer_id', req.params.swimmerId);
     const { data: feedbacks } = await supabase.from('video_feedback').select('*').eq('swimmer_id', req.params.swimmerId);
-    if (!goals?.length || !times?.length || !feedbacks?.length) return res.json({ ready: false, missing: { goals: !goals?.length, times: !times?.length, video: !feedbacks?.length } });
+    if (!goals?.length || !times?.length) return res.json({ ready: false, missing: { goals: !goals?.length, times: !times?.length } });
     const g = goals[0];
     const rt = times.filter(t => t.stroke === g.stroke && t.distance === g.distance);
     const best = rt.length ? Math.min(...rt.map(t => t.time_seconds)) : null;
