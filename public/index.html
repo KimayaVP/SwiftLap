@@ -227,6 +227,7 @@
         <div class="leaderboard-card"><h2>🏆 Leaderboard</h2><div id="coachLeaderboard"></div></div>
         <div class="card"><h2>👥 Swimmers</h2><div id="coachSwimmersList"></div></div>
         <div id="swimmerCommentSection" class="card" style="display:none;"><h2>💬 Comment on <span id="commentSwimmerName"></span></h2><button class="btn btn-secondary btn-small" style="margin-bottom:12px;" onclick="hideCommentSection()">← Back</button><div id="swimmerTimesForComment"></div><div style="margin-top:16px;"><h4 style="margin-bottom:8px;">Quick Reactions</h4><div style="display:flex;gap:8px;margin-bottom:12px;"><button class="btn btn-small" style="font-size:1.2rem;" onclick="addReaction('🔥')">🔥</button><button class="btn btn-small" style="font-size:1.2rem;" onclick="addReaction('💪')">💪</button><button class="btn btn-small" style="font-size:1.2rem;" onclick="addReaction('👏')">👏</button><button class="btn btn-small" style="font-size:1.2rem;" onclick="addReaction('⭐')">⭐</button></div><h4 style="margin-bottom:8px;">Add Comment</h4><textarea id="coachCommentText" placeholder="Great job on your times!" style="width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.05);color:white;min-height:80px;margin-bottom:8px;"></textarea><button class="btn btn-primary btn-small" onclick="addComment()">Send Comment</button></div></div>
+        <div id="awardBadgeSection" class="card" style="display:none;"><h2>🏅 Award Badge to <span id="badgeSwimmerName"></span></h2><button class="btn btn-secondary btn-small" style="margin-bottom:12px;" onclick="hideAwardBadge()">← Back</button><h4 style="margin-bottom:8px;">Select Badge</h4><div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;" id="badgeOptions"></div><div id="selectedBadgePreview" style="display:none;padding:12px;background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.3);border-radius:10px;margin-bottom:12px;text-align:center;"><span id="selectedBadgeIcon" style="font-size:2rem;"></span><div id="selectedBadgeName" style="font-weight:600;color:#fbbf24;"></div></div><div class="form-group"><label>Personal Message (optional)</label><textarea id="badgeMessage" placeholder="Congratulations!" style="width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.05);color:white;min-height:60px;"></textarea></div><button class="btn btn-success" onclick="awardBadge()">Award Badge</button></div>
         <div class="card"><h2>📦 Batches</h2><div id="batchesList"></div><div style="margin-top:12px;"><button class="btn btn-primary btn-small" onclick="showCreateBatch()">Create Batch</button></div><div id="createBatchForm" style="display:none;margin-top:12px;"><input type="text" id="newBatchName" placeholder="Batch name (e.g. Morning Squad)" style="width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.05);color:white;margin-bottom:8px;"><button class="btn btn-success btn-small" onclick="createBatch()">Create</button><button class="btn btn-secondary btn-small" onclick="hideCreateBatch()">Cancel</button></div></div>
         <div id="batchDetailSection" class="card" style="display:none;"><h2>📦 <span id="batchDetailName"></span></h2><button class="btn btn-secondary btn-small" style="margin-bottom:12px;" onclick="hideBatchDetail()">← Back</button><div id="batchMembers"></div><div style="margin-top:12px;"><select id="addSwimmerSelect" style="padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.05);color:white;margin-right:8px;"><option value="">Add swimmer...</option></select><button class="btn btn-primary btn-small" onclick="addSwimmerToBatch()">Add</button></div><h3 style="margin-top:20px;margin-bottom:12px;color:#fbbf24;">🏆 Batch Leaderboard</h3><div id="batchLeaderboard"></div></div>
         <div class="card">
@@ -307,6 +308,7 @@
         </div>
         <div class="card"><h2>🤖 Feedback</h2><div id="feedbackList"></div></div>
         <div class="card"><h2>💬 Coach Feedback</h2><div id="coachFeedbackList"></div></div>
+        <div class="card"><h2>🏅 Coach Badges</h2><div id="coachBadgesList"></div></div>
         <div class="card">
           <h2>⏱️ Log Time</h2>
           <form id="logTimeForm">
@@ -400,7 +402,7 @@
         loadInsights();
         loadGoals();
         loadTimes();
-        loadFeedback(); loadCoachFeedback();
+        loadFeedback(); loadCoachFeedback(); loadCoachBadges();
       }
     }
 
@@ -562,7 +564,7 @@
       document.getElementById('noGoalsCount').textContent = data.summary.noGoals;
       const list = document.getElementById('coachSwimmersList');
       if (!data.swimmers.length) { list.innerHTML = '<p class="empty-state">No swimmers yet</p>'; return; }
-      list.innerHTML = data.swimmers.map(s => `<div class="swimmer-detail-card ${s.status}"><div class="swimmer-detail-header"><h4>${s.name}</h4><span class="status-badge status-${s.status}">${s.status === 'ahead' ? '✓' : s.status === 'behind' ? '↓' : '-'}</span></div><div class="swimmer-detail-stats"><span>Goals <strong>${s.goalsAhead}/${s.goalsCount}</strong></span><span>Sessions <strong>${s.sessionsThisMonth}</strong></span><span>🔥 <strong>${s.streak}</strong></span></div><button class="btn btn-small btn-primary" style="margin-top:8px;" onclick="showCommentSection('${s.id}', '${s.name}')">💬 Comment</button></div>`).join('');
+      list.innerHTML = data.swimmers.map(s => `<div class="swimmer-detail-card ${s.status}"><div class="swimmer-detail-header"><h4>${s.name}</h4><span class="status-badge status-${s.status}">${s.status === 'ahead' ? '✓' : s.status === 'behind' ? '↓' : '-'}</span></div><div class="swimmer-detail-stats"><span>Goals <strong>${s.goalsAhead}/${s.goalsCount}</strong></span><span>Sessions <strong>${s.sessionsThisMonth}</strong></span><span>🔥 <strong>${s.streak}</strong></span></div><button class="btn btn-small btn-primary" style="margin-top:8px;" onclick="showCommentSection('${s.id}', '${s.name}')">💬 Comment</button><button class="btn btn-small btn-success" style="margin-top:8px;margin-left:4px;" onclick="showAwardBadge('${s.id}', '${s.name}')">🏅 Award</button></div>`).join('');
     }
 
     async function loadCoachLeaderboard() {
@@ -681,7 +683,7 @@
       else {
         selectedFile = null; document.getElementById('fileSelected').textContent = ''; uploadBtn.disabled = true;
         if (data.newBadges?.length) data.newBadges.forEach(b => showBadgeNotification(b));
-        loadFeedback(); loadCoachFeedback(); loadTrainingPlan(); loadAchievements();
+        loadFeedback(); loadCoachFeedback(); loadCoachBadges(); loadTrainingPlan(); loadAchievements();
       }
     });
 
@@ -863,6 +865,61 @@
       const container = document.getElementById("coachFeedbackList");
       if (!data.comments?.length) { container.innerHTML = "<p class=\"empty-state\">No feedback yet</p>"; return; }
       container.innerHTML = data.comments.map(c => `<div style="background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.3);padding:12px;border-radius:10px;margin-bottom:8px;"><div style="display:flex;justify-content:space-between;margin-bottom:4px;"><span style="font-weight:600;color:#22c55e;">${c.coach?.name || "Coach"}</span><span style="font-size:0.75rem;color:#94a3b8;">${new Date(c.created_at).toLocaleDateString()}</span></div>${c.reaction ? `<div style="font-size:1.5rem;">${c.reaction}</div>` : ""}${c.comment ? `<p style="margin-top:4px;">${c.comment}</p>` : ""}${c.time ? `<div style="font-size:0.75rem;color:#94a3b8;margin-top:4px;">On: ${c.time.stroke} ${c.time.distance}m - ${formatTime(c.time.time_seconds)}</div>` : ""}</div>`).join("");
+    }
+
+    // ========== MANUAL COACH BADGES ==========
+    let currentBadgeSwimmerId = null;
+    let selectedBadgeIcon = null;
+    let selectedBadgeName = null;
+    const badgeLibrary = [
+      {icon: "🌟", name: "Star Performer"},
+      {icon: "🏆", name: "Champion"},
+      {icon: "🚀", name: "Most Improved"},
+      {icon: "💎", name: "Diamond Effort"},
+      {icon: "🎯", name: "Goal Crusher"},
+      {icon: "⚡", name: "Speed Demon"},
+      {icon: "🦈", name: "Shark"},
+      {icon: "🔥", name: "On Fire"},
+      {icon: "💪", name: "Strong Work"},
+      {icon: "🥇", name: "Gold Standard"}
+    ];
+    function showAwardBadge(swimmerId, swimmerName) {
+      currentBadgeSwimmerId = swimmerId;
+      selectedBadgeIcon = null;
+      selectedBadgeName = null;
+      document.getElementById("badgeSwimmerName").textContent = swimmerName;
+      document.getElementById("awardBadgeSection").style.display = "block";
+      document.getElementById("selectedBadgePreview").style.display = "none";
+      document.getElementById("badgeMessage").value = "";
+      const container = document.getElementById("badgeOptions");
+      container.innerHTML = badgeLibrary.map(b => `<button class="btn btn-small" style="font-size:1.2rem;" onclick="selectBadge('${b.icon}', '${b.name}')">${b.icon}</button>`).join("");
+    }
+    function hideAwardBadge() {
+      document.getElementById("awardBadgeSection").style.display = "none";
+      currentBadgeSwimmerId = null;
+    }
+    function selectBadge(icon, name) {
+      selectedBadgeIcon = icon;
+      selectedBadgeName = name;
+      document.getElementById("selectedBadgePreview").style.display = "block";
+      document.getElementById("selectedBadgeIcon").textContent = icon;
+      document.getElementById("selectedBadgeName").textContent = name;
+    }
+    async function awardBadge() {
+      if (!currentBadgeSwimmerId || !selectedBadgeIcon) return alert("Select a badge first");
+      const message = document.getElementById("badgeMessage").value;
+      const res = await fetch("/api/coach-badges/award", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ coachId: currentUser.id, swimmerId: currentBadgeSwimmerId, badgeName: selectedBadgeName, badgeIcon: selectedBadgeIcon, message }) });
+      const data = await res.json();
+      if (data.error) alert(data.error);
+      else { alert("Badge awarded!"); hideAwardBadge(); }
+    }
+    async function loadCoachBadges() {
+      const res = await fetch(`/api/coach-badges/swimmer/${currentUser.id}`);
+      const data = await res.json();
+      const container = document.getElementById("coachBadgesList");
+      if (!container) return;
+      if (!data.badges?.length) { container.innerHTML = "<p class=\"empty-state\">No coach badges yet</p>"; return; }
+      container.innerHTML = data.badges.map(b => `<div style="background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.3);padding:12px;border-radius:10px;margin-bottom:8px;"><div style="display:flex;align-items:center;gap:10px;"><span style="font-size:2rem;">${b.badge_icon}</span><div><div style="font-weight:600;color:#fbbf24;">${b.badge_name}</div><div style="font-size:0.75rem;color:#94a3b8;">From ${b.coach?.name || "Coach"} • ${new Date(b.created_at).toLocaleDateString()}</div></div></div>${b.message ? `<p style="margin-top:8px;font-size:0.9rem;">${b.message}</p>` : ""}</div>`).join("");
     }
 
     function logout() {
