@@ -208,7 +208,7 @@ app.get('/api/health', (req, res) => res.json({ status: 'ok', timestamp: new Dat
 
 app.post('/api/auth/signup', async (req, res) => {
   try {
-    const { email, password, name, role } = req.body;
+    const { email, password, name, role, region } = req.body;
     const { data: authData, error: authError } = await supabase.auth.signUp({ email, password });
     if (authError) return res.status(400).json({ error: authError.message });
     const { data: profile, error } = await supabase.from('profiles').insert({ id: authData.user.id, email, name, role: role || 'swimmer' }).select().single();
@@ -1492,5 +1492,133 @@ app.get('/api/meets/search', async (req, res) => {
     
     if (error) return res.status(400).json({ error: error.message });
     res.json({ meets: data });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ========== PUBLIC MEET CALENDAR ==========
+
+// Get all upcoming public meets
+app.get('/api/public-meets', async (req, res) => {
+  try {
+    const today = new Date().toISOString().split('T')[0];
+    const region = req.query.region || "USA";
+    const { data: meets, error } = await supabase
+      .from("public_meets")
+      .select("*, created_by_profile:created_by(name)")
+      .gte("date", today)
+      .or(`location.ilike.%${region}%,location.ilike.%National%`)
+      .order("date", { ascending: true });
+    
+    if (error) return res.status(400).json({ error: error.message });
+    
+    // Get RSVP counts and attendees for each meet
+    for (const meet of meets || []) {
+      const { data: rsvps } = await supabase
+        .from('meet_rsvps')
+        .select('swimmer_id, profiles(name)')
+        .eq('meet_id', meet.id);
+      meet.rsvpCount = rsvps?.length || 0;
+      meet.attendees = (rsvps || []).map(r => r.profiles?.name).filter(Boolean);
+    }
+    
+    res.json({ meets });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Add a public meet
+app.post('/api/public-meets/create', async (req, res) => {
+  try {
+    const { name, date, location, registrationLink, swimmerId } = req.body;
+    
+    const { data, error } = await supabase
+      .from('public_meets')
+      .insert({ name, date, location: location || null, registration_link: registrationLink || null, created_by: swimmerId })
+      .select()
+      .single();
+    
+    if (error) return res.status(400).json({ error: error.message });
+    
+    await trackEvent(swimmerId, 'public_meet_created', { meetId: data.id, name });
+    res.json({ success: true, meet: data });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// RSVP to a meet
+app.post('/api/public-meets/rsvp', async (req, res) => {
+  try {
+    const { meetId, swimmerId } = req.body;
+    
+    // Check if already RSVP'd
+    const { data: existing } = await supabase
+      .from('meet_rsvps')
+      .select('*')
+      .eq('meet_id', meetId)
+      .eq('swimmer_id', swimmerId)
+      .single();
+    
+    if (existing) {
+      // Remove RSVP
+      await supabase.from('meet_rsvps').delete().eq('id', existing.id);
+      return res.json({ success: true, rsvp: false });
+    }
+    
+    // Add RSVP
+    const { error } = await supabase
+      .from('meet_rsvps')
+      .insert({ meet_id: meetId, swimmer_id: swimmerId });
+    
+    if (error) return res.status(400).json({ error: error.message });
+    
+    await trackEvent(swimmerId, 'meet_rsvp', { meetId });
+    res.json({ success: true, rsvp: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Get swimmer's RSVPs
+app.get('/api/public-meets/my-rsvps/:swimmerId', async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('meet_rsvps')
+      .select('meet_id')
+      .eq('swimmer_id', req.params.swimmerId);
+    
+    if (error) return res.status(400).json({ error: error.message });
+    res.json({ rsvps: (data || []).map(r => r.meet_id) });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Get RSVPs for coach's swimmers
+app.get('/api/public-meets/coach-view/:coachId', async (req, res) => {
+  try {
+    // Get coach's swimmers
+    const { data: swimmers } = await supabase
+      .from('profiles')
+      .select('id, name')
+      .eq('coach_id', req.params.coachId);
+    
+    if (!swimmers?.length) return res.json({ meets: [] });
+    
+    const swimmerIds = swimmers.map(s => s.id);
+    
+    // Get all RSVPs from coach's swimmers
+    const { data: rsvps } = await supabase
+      .from('meet_rsvps')
+      .select('meet_id, swimmer_id, public_meets(name, date, location)')
+      .in('swimmer_id', swimmerIds);
+    
+    // Group by meet
+    const meetMap = {};
+    for (const r of rsvps || []) {
+      if (!meetMap[r.meet_id]) {
+        meetMap[r.meet_id] = {
+          ...r.public_meets,
+          swimmers: []
+        };
+      }
+      const swimmer = swimmers.find(s => s.id === r.swimmer_id);
+      if (swimmer) meetMap[r.meet_id].swimmers.push(swimmer.name);
+    }
+    
+    res.json({ meets: Object.values(meetMap) });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });

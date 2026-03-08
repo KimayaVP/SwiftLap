@@ -194,7 +194,7 @@
           <div class="form-group"><label>Name</label><input type="text" id="signupName" required></div>
           <div class="form-group"><label>Email</label><input type="email" id="signupEmail" required></div>
           <div class="form-group"><label>Password</label><input type="password" id="signupPassword" required minlength="6"></div>
-          <div class="form-group"><label>I am a...</label><select id="signupRole"><option value="swimmer">Swimmer</option><option value="coach">Coach</option></select></div>
+          <div class="form-group"><label>I am a...</label><select id="signupRole"><option value="swimmer">Swimmer</option><option value="coach">Coach</option></select></div><div class="form-group"><label>Region</label><select id="signupRegion"><option value="USA">USA</option><option value="India">India</option><option value="UK">UK</option><option value="Australia">Australia</option><option value="Other">Other</option></select></div>
           <button type="submit" class="btn btn-primary">Create Account</button>
         </form>
       </div>
@@ -312,6 +312,8 @@
         <div class="card"><h2>🏁 Meets & Races</h2><div id="meetsList"></div><button class="btn btn-primary btn-small" style="margin-top:12px;" onclick="showAddMeet()">+ Add Meet</button></div>
         <div id="addMeetSection" class="card" style="display:none;"><h2>🏁 Add Meet</h2><button class="btn btn-secondary btn-small" style="margin-bottom:12px;" onclick="hideAddMeet()">← Back</button><div class="form-group"><label>Meet Name</label><input type="text" id="meetName" placeholder="Summer Championships 2026"></div><div class="form-group"><label>Date</label><input type="date" id="meetDate"></div><div class="form-group"><label>Location</label><input type="text" id="meetLocation" placeholder="City Pool"></div><button class="btn btn-success" onclick="createMeet()">Create Meet</button></div>
         <div id="meetDetailSection" class="card" style="display:none;"><h2>🏁 <span id="meetDetailName"></span></h2><button class="btn btn-secondary btn-small" style="margin-bottom:12px;" onclick="hideMeetDetail()">← Back</button><div id="meetResultsList"></div><h4 style="margin-top:16px;margin-bottom:8px;">Add Race Result</h4><div class="form-group"><label>Stroke</label><select id="raceStroke"><option value="Freestyle">Freestyle</option><option value="Backstroke">Backstroke</option><option value="Breaststroke">Breaststroke</option><option value="Butterfly">Butterfly</option><option value="IM">IM</option></select></div><div class="form-group"><label>Distance</label><select id="raceDistance"><option value="50">50m</option><option value="100">100m</option><option value="200">200m</option><option value="400">400m</option></select></div><div class="form-group"><label>Time</label><div class="time-inputs"><input type="number" id="raceMinutes" placeholder="Min" min="0"><input type="number" id="raceSeconds" placeholder="Sec" min="0" max="59"></div></div><div class="form-group"><label>Place (optional)</label><input type="number" id="racePlace" placeholder="1" min="1"></div><div class="form-group"><label>Medal</label><select id="raceMedal"><option value="">None</option><option value="gold">🥇 Gold</option><option value="silver">🥈 Silver</option><option value="bronze">🥉 Bronze</option></select></div><button class="btn btn-success" onclick="addRaceResult()">Add Result</button></div>
+        <div class="card"><h2>📅 Upcoming Meets</h2><p style="font-size:0.8rem;color:#94a3b8;margin-bottom:12px;">Public meets in your area</p><div id="publicMeetsList"></div></div>
+        <div id="addPublicMeetSection" class="card" style="display:none;"><h2>📅 Add Public Meet</h2><button class="btn btn-secondary btn-small" style="margin-bottom:12px;" onclick="hideAddPublicMeet()">← Back</button><div class="form-group"><label>Meet Name</label><input type="text" id="publicMeetName" placeholder="City Championships 2026"></div><div class="form-group"><label>Date</label><input type="date" id="publicMeetDate"></div><div class="form-group"><label>Location</label><input type="text" id="publicMeetLocation" placeholder="Aquatic Center"></div><div class="form-group"><label>Registration Link (optional)</label><input type="text" id="publicMeetLink" placeholder="https://..."></div><button class="btn btn-success" onclick="createPublicMeet()">Add Meet</button></div>
         <div class="card">
           <h2>⏱️ Log Time</h2>
           <form id="logTimeForm">
@@ -367,7 +369,7 @@
 
     document.getElementById('signupForm').addEventListener('submit', async (e) => {
       e.preventDefault();
-      const res = await fetch('/api/auth/signup', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: document.getElementById('signupName').value, email: document.getElementById('signupEmail').value, password: document.getElementById('signupPassword').value, role: document.getElementById('signupRole').value }) });
+      const res = await fetch('/api/auth/signup', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: document.getElementById('signupName').value, email: document.getElementById('signupEmail').value, password: document.getElementById('signupPassword').value, role: document.getElementById('signupRole').value, region: document.getElementById('signupRegion').value }) });
       const data = await res.json();
       if (data.error) document.getElementById('error').textContent = data.error;
       else { document.getElementById('success').textContent = 'Created!'; showTab('login'); }
@@ -405,7 +407,7 @@
         loadInsights();
         loadGoals();
         loadTimes();
-        loadFeedback(); loadCoachFeedback(); loadCoachBadges(); loadMeets();
+        loadFeedback(); loadCoachFeedback(); loadCoachBadges(); loadMeets(); loadPublicMeets();
       }
     }
 
@@ -686,7 +688,7 @@
       else {
         selectedFile = null; document.getElementById('fileSelected').textContent = ''; uploadBtn.disabled = true;
         if (data.newBadges?.length) data.newBadges.forEach(b => showBadgeNotification(b));
-        loadFeedback(); loadCoachFeedback(); loadCoachBadges(); loadMeets(); loadTrainingPlan(); loadAchievements();
+        loadFeedback(); loadCoachFeedback(); loadCoachBadges(); loadMeets(); loadPublicMeets(); loadTrainingPlan(); loadAchievements();
       }
     });
 
@@ -944,7 +946,7 @@
       const res = await fetch("/api/meets/create", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, date, location, swimmerId: currentUser.id }) });
       const data = await res.json();
       if (data.error) alert(data.error);
-      else { hideAddMeet(); viewMeetDetail(data.meet.id, data.meet.name); loadMeets(); }
+      else { hideAddMeet(); viewMeetDetail(data.meet.id, data.meet.name); loadMeets(); loadPublicMeets(); }
     }
     async function viewMeetDetail(meetId, meetName) {
       currentMeetId = meetId;
@@ -973,7 +975,44 @@
       const res = await fetch("/api/meets/add-result", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ meetId: currentMeetId, swimmerId: currentUser.id, stroke, distance, minutes, seconds, place, medal }) });
       const data = await res.json();
       if (data.error) alert(data.error);
-      else { if (data.isPB) alert("🎉 New Personal Best!"); document.getElementById("raceMinutes").value = ""; document.getElementById("raceSeconds").value = ""; document.getElementById("racePlace").value = ""; loadMeetResults(currentMeetId); loadMeets(); loadTimes(); loadGoals(); }
+      else { if (data.isPB) alert("🎉 New Personal Best!"); document.getElementById("raceMinutes").value = ""; document.getElementById("raceSeconds").value = ""; document.getElementById("racePlace").value = ""; loadMeetResults(currentMeetId); loadMeets(); loadPublicMeets(); loadTimes(); loadGoals(); }
+    }
+
+    // ========== PUBLIC MEET CALENDAR ==========
+    let myRsvps = [];
+    async function loadPublicMeets() {
+      const [meetsRes, rsvpsRes] = await Promise.all([
+        fetch("/api/public-meets"),
+        fetch(`/api/public-meets/my-rsvps/${currentUser.id}`)
+      ]);
+      const meetsData = await meetsRes.json();
+      const rsvpsData = await rsvpsRes.json();
+      myRsvps = rsvpsData.rsvps || [];
+      const container = document.getElementById("publicMeetsList");
+      if (!meetsData.meets?.length) { container.innerHTML = "<p class=\"empty-state\">No upcoming meets</p>"; return; }
+      container.innerHTML = meetsData.meets.map(m => {
+        const isGoing = myRsvps.includes(m.id);
+        return `<div style="background:rgba(255,255,255,0.03);padding:14px;border-radius:10px;margin-bottom:10px;"><div style="display:flex;justify-content:space-between;align-items:start;"><div><div style="font-weight:600;">${m.name}</div><div style="font-size:0.8rem;color:#94a3b8;">📅 ${m.date} • 📍 ${m.location || "TBA"}</div><div style="font-size:0.75rem;color:#64748b;margin-top:4px;">👥 ${m.rsvpCount} going${m.attendees?.length ? ": " + m.attendees.slice(0,3).join(", ") + (m.attendees.length > 3 ? "..." : "") : ""}</div></div><button class="btn btn-small ${isGoing ? "btn-success" : "btn-primary"}" onclick="toggleRsvp('${m.id}')">${isGoing ? "✓ Going" : "RSVP"}</button></div>${m.registration_link ? `<a href="${m.registration_link}" target="_blank" style="font-size:0.8rem;color:#0ea5e9;display:block;margin-top:8px;">🔗 Register</a>` : ""}</div>`;
+      }).join("");
+    }
+    function showAddPublicMeet() { document.getElementById("addPublicMeetSection").style.display = "block"; }
+    function hideAddPublicMeet() { document.getElementById("addPublicMeetSection").style.display = "none"; }
+    async function createPublicMeet() {
+      const name = document.getElementById("publicMeetName").value;
+      const date = document.getElementById("publicMeetDate").value;
+      const location = document.getElementById("publicMeetLocation").value;
+      const registrationLink = document.getElementById("publicMeetLink").value;
+      if (!name || !date) return alert("Enter meet name and date");
+      const res = await fetch("/api/public-meets/create", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, date, location, registrationLink, swimmerId: currentUser.id }) });
+      const data = await res.json();
+      if (data.error) alert(data.error);
+      else { document.getElementById("publicMeetName").value = ""; document.getElementById("publicMeetDate").value = ""; document.getElementById("publicMeetLocation").value = ""; document.getElementById("publicMeetLink").value = ""; hideAddPublicMeet(); loadPublicMeets(); }
+    }
+    async function toggleRsvp(meetId) {
+      const res = await fetch("/api/public-meets/rsvp", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ meetId, swimmerId: currentUser.id }) });
+      const data = await res.json();
+      if (data.error) alert(data.error);
+      else loadPublicMeets();
     }
 
     function logout() {
