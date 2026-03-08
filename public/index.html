@@ -309,6 +309,9 @@
         <div class="card"><h2>🤖 Feedback</h2><div id="feedbackList"></div></div>
         <div class="card"><h2>💬 Coach Feedback</h2><div id="coachFeedbackList"></div></div>
         <div class="card"><h2>🏅 Coach Badges</h2><div id="coachBadgesList"></div></div>
+        <div class="card"><h2>🏁 Meets & Races</h2><div id="meetsList"></div><button class="btn btn-primary btn-small" style="margin-top:12px;" onclick="showAddMeet()">+ Add Meet</button></div>
+        <div id="addMeetSection" class="card" style="display:none;"><h2>🏁 Add Meet</h2><button class="btn btn-secondary btn-small" style="margin-bottom:12px;" onclick="hideAddMeet()">← Back</button><div class="form-group"><label>Meet Name</label><input type="text" id="meetName" placeholder="Summer Championships 2026"></div><div class="form-group"><label>Date</label><input type="date" id="meetDate"></div><div class="form-group"><label>Location</label><input type="text" id="meetLocation" placeholder="City Pool"></div><button class="btn btn-success" onclick="createMeet()">Create Meet</button></div>
+        <div id="meetDetailSection" class="card" style="display:none;"><h2>🏁 <span id="meetDetailName"></span></h2><button class="btn btn-secondary btn-small" style="margin-bottom:12px;" onclick="hideMeetDetail()">← Back</button><div id="meetResultsList"></div><h4 style="margin-top:16px;margin-bottom:8px;">Add Race Result</h4><div class="form-group"><label>Stroke</label><select id="raceStroke"><option value="Freestyle">Freestyle</option><option value="Backstroke">Backstroke</option><option value="Breaststroke">Breaststroke</option><option value="Butterfly">Butterfly</option><option value="IM">IM</option></select></div><div class="form-group"><label>Distance</label><select id="raceDistance"><option value="50">50m</option><option value="100">100m</option><option value="200">200m</option><option value="400">400m</option></select></div><div class="form-group"><label>Time</label><div class="time-inputs"><input type="number" id="raceMinutes" placeholder="Min" min="0"><input type="number" id="raceSeconds" placeholder="Sec" min="0" max="59"></div></div><div class="form-group"><label>Place (optional)</label><input type="number" id="racePlace" placeholder="1" min="1"></div><div class="form-group"><label>Medal</label><select id="raceMedal"><option value="">None</option><option value="gold">🥇 Gold</option><option value="silver">🥈 Silver</option><option value="bronze">🥉 Bronze</option></select></div><button class="btn btn-success" onclick="addRaceResult()">Add Result</button></div>
         <div class="card">
           <h2>⏱️ Log Time</h2>
           <form id="logTimeForm">
@@ -402,7 +405,7 @@
         loadInsights();
         loadGoals();
         loadTimes();
-        loadFeedback(); loadCoachFeedback(); loadCoachBadges();
+        loadFeedback(); loadCoachFeedback(); loadCoachBadges(); loadMeets();
       }
     }
 
@@ -683,7 +686,7 @@
       else {
         selectedFile = null; document.getElementById('fileSelected').textContent = ''; uploadBtn.disabled = true;
         if (data.newBadges?.length) data.newBadges.forEach(b => showBadgeNotification(b));
-        loadFeedback(); loadCoachFeedback(); loadCoachBadges(); loadTrainingPlan(); loadAchievements();
+        loadFeedback(); loadCoachFeedback(); loadCoachBadges(); loadMeets(); loadTrainingPlan(); loadAchievements();
       }
     });
 
@@ -920,6 +923,57 @@
       if (!container) return;
       if (!data.badges?.length) { container.innerHTML = "<p class=\"empty-state\">No coach badges yet</p>"; return; }
       container.innerHTML = data.badges.map(b => `<div style="background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.3);padding:12px;border-radius:10px;margin-bottom:8px;"><div style="display:flex;align-items:center;gap:10px;"><span style="font-size:2rem;">${b.badge_icon}</span><div><div style="font-weight:600;color:#fbbf24;">${b.badge_name}</div><div style="font-size:0.75rem;color:#94a3b8;">From ${b.coach?.name || "Coach"} • ${new Date(b.created_at).toLocaleDateString()}</div></div></div>${b.message ? `<p style="margin-top:8px;font-size:0.9rem;">${b.message}</p>` : ""}</div>`).join("");
+    }
+
+    // ========== MEET RESULTS TRACKER ==========
+    let currentMeetId = null;
+    async function loadMeets() {
+      const res = await fetch(`/api/meets/${currentUser.id}`);
+      const data = await res.json();
+      const container = document.getElementById("meetsList");
+      if (!data.meets?.length) { container.innerHTML = "<p class=\"empty-state\">No meets yet</p>"; return; }
+      container.innerHTML = data.meets.map(m => `<div style="background:rgba(255,255,255,0.03);padding:12px;border-radius:10px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;"><div><div style="font-weight:600;">${m.name}</div><div style="font-size:0.75rem;color:#94a3b8;">${m.date} • ${m.resultCount} races</div></div><button class="btn btn-primary btn-small" onclick="viewMeetDetail('${m.id}', '${m.name}')">View</button></div>`).join("");
+    }
+    function showAddMeet() { document.getElementById("addMeetSection").style.display = "block"; }
+    function hideAddMeet() { document.getElementById("addMeetSection").style.display = "none"; }
+    async function createMeet() {
+      const name = document.getElementById("meetName").value;
+      const date = document.getElementById("meetDate").value;
+      const location = document.getElementById("meetLocation").value;
+      if (!name || !date) return alert("Enter meet name and date");
+      const res = await fetch("/api/meets/create", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, date, location, swimmerId: currentUser.id }) });
+      const data = await res.json();
+      if (data.error) alert(data.error);
+      else { hideAddMeet(); viewMeetDetail(data.meet.id, data.meet.name); loadMeets(); }
+    }
+    async function viewMeetDetail(meetId, meetName) {
+      currentMeetId = meetId;
+      document.getElementById("meetDetailName").textContent = meetName;
+      document.getElementById("meetDetailSection").style.display = "block";
+      document.getElementById("addMeetSection").style.display = "none";
+      await loadMeetResults(meetId);
+    }
+    function hideMeetDetail() { document.getElementById("meetDetailSection").style.display = "none"; currentMeetId = null; }
+    async function loadMeetResults(meetId) {
+      const res = await fetch(`/api/meets/${meetId}/results/${currentUser.id}`);
+      const data = await res.json();
+      const container = document.getElementById("meetResultsList");
+      if (!data.results?.length) { container.innerHTML = "<p class=\"empty-state\">No races logged yet</p>"; return; }
+      container.innerHTML = data.results.map(r => `<div style="background:rgba(255,255,255,0.03);padding:12px;border-radius:10px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;"><div><div style="font-weight:600;">${r.stroke} ${r.distance}m ${r.medal ? (r.medal === "gold" ? "🥇" : r.medal === "silver" ? "🥈" : "🥉") : ""}</div><div style="font-size:0.75rem;color:#94a3b8;">${r.place ? "Place: " + r.place : ""} ${r.is_pb ? "⭐ PB!" : ""}</div></div><div style="font-size:1.2rem;font-weight:700;color:#0ea5e9;">${formatTime(r.time_seconds)}</div></div>`).join("");
+    }
+    async function addRaceResult() {
+      if (!currentMeetId) return alert("No meet selected");
+      const stroke = document.getElementById("raceStroke").value;
+      const distance = document.getElementById("raceDistance").value;
+      const minutes = document.getElementById("raceMinutes").value || 0;
+      const seconds = document.getElementById("raceSeconds").value || 0;
+      const place = document.getElementById("racePlace").value;
+      const medal = document.getElementById("raceMedal").value;
+      if (!minutes && !seconds) return alert("Enter a time");
+      const res = await fetch("/api/meets/add-result", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ meetId: currentMeetId, swimmerId: currentUser.id, stroke, distance, minutes, seconds, place, medal }) });
+      const data = await res.json();
+      if (data.error) alert(data.error);
+      else { if (data.isPB) alert("🎉 New Personal Best!"); document.getElementById("raceMinutes").value = ""; document.getElementById("raceSeconds").value = ""; document.getElementById("racePlace").value = ""; loadMeetResults(currentMeetId); loadMeets(); loadTimes(); loadGoals(); }
     }
 
     function logout() {
