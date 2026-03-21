@@ -1494,3 +1494,86 @@ app.get('/api/meets/search', async (req, res) => {
     res.json({ meets: data });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
+
+// ========== APPLE WATCH WORKOUT SYNC ==========
+
+// Receive workout from Apple Watch
+app.post('/api/watch/workout', async (req, res) => {
+  try {
+    const { 
+      swimmerId, duration, distance, laps, strokeCount, 
+      avgHeartRate, calories, lapTimes, lapStrokes, 
+      fatigueLevel, poolLength, date, source 
+    } = req.body;
+    
+    // Save workout to database
+    const { data: workout, error } = await supabase
+      .from('watch_workouts')
+      .insert({
+        swimmer_id: swimmerId,
+        duration,
+        distance,
+        laps,
+        stroke_count: strokeCount,
+        avg_heart_rate: avgHeartRate,
+        calories,
+        lap_times: lapTimes,
+        lap_strokes: lapStrokes,
+        fatigue_level: fatigueLevel,
+        pool_length: poolLength,
+        workout_date: date,
+        source: source || 'apple_watch'
+      })
+      .select()
+      .single();
+    
+    if (error) return res.status(400).json({ error: error.message });
+    
+    // Also log the best lap time to swim_times
+    if (lapTimes && lapTimes.length > 0) {
+      const bestLapTime = Math.min(...lapTimes);
+      await supabase.from('swim_times').insert({
+        swimmer_id: swimmerId,
+        stroke: 'Freestyle', // Default, can be updated
+        distance: poolLength,
+        time_seconds: bestLapTime,
+        date: date?.split('T')[0] || new Date().toISOString().split('T')[0]
+      });
+    }
+    
+    await trackEvent(swimmerId, 'watch_workout_synced', { laps, distance, source });
+    res.json({ success: true, workout });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Get watch workouts for a swimmer
+app.get('/api/watch/workouts/:swimmerId', async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('watch_workouts')
+      .select('*')
+      .eq('swimmer_id', req.params.swimmerId)
+      .order('created_at', { ascending: false })
+      .limit(20);
+    
+    if (error) return res.status(400).json({ error: error.message });
+    res.json({ workouts: data });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Link watch to swimmer account
+app.post('/api/watch/link', async (req, res) => {
+  try {
+    const { swimmerId, watchId } = req.body;
+    
+    const { error } = await supabase
+      .from('profiles')
+      .update({ watch_id: watchId, watch_linked_at: new Date().toISOString() })
+      .eq('id', swimmerId);
+    
+    if (error) return res.status(400).json({ error: error.message });
+    
+    await trackEvent(swimmerId, 'watch_linked', { watchId });
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
