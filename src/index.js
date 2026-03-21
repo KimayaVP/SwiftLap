@@ -1577,3 +1577,62 @@ app.post('/api/watch/link', async (req, res) => {
     res.json({ success: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
+
+// Generate link code for watch pairing
+app.post('/api/watch/generate-code', async (req, res) => {
+cd ~/SwiftLap && cat >> src/index.js << 'EOF'
+
+// Generate link code for watch pairing
+app.post('/api/watch/generate-code', async (req, res) => {
+  try {
+    const { swimmerId } = req.body;
+    
+    // Generate 6-digit code
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    
+    // Store code with 10-minute expiry
+    const { error } = await supabase
+      .from('watch_link_codes')
+      .insert({
+        swimmer_id: swimmerId,
+        code: code,
+        expires_at: new Date(Date.now() + 10 * 60 * 1000).toISOString()
+      });
+    
+    if (error) return res.status(400).json({ error: error.message });
+    
+    res.json({ code });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Verify link code from watch
+app.post('/api/watch/verify-code', async (req, res) => {
+  try {
+    const { code } = req.body;
+    
+    const { data, error } = await supabase
+      .from('watch_link_codes')
+      .select('swimmer_id, expires_at')
+      .eq('code', code)
+      .single();
+    
+    if (error || !data) {
+      return res.status(400).json({ error: 'Invalid code' });
+    }
+    
+    if (new Date(data.expires_at) < new Date()) {
+      return res.status(400).json({ error: 'Code expired' });
+    }
+    
+    // Delete used code
+    await supabase.from('watch_link_codes').delete().eq('code', code);
+    
+    // Mark watch as linked
+    await supabase
+      .from('profiles')
+      .update({ watch_linked_at: new Date().toISOString() })
+      .eq('id', data.swimmer_id);
+    
+    res.json({ swimmerId: data.swimmer_id });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
