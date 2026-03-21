@@ -1580,10 +1580,6 @@ app.post('/api/watch/link', async (req, res) => {
 
 // Generate link code for watch pairing
 app.post('/api/watch/generate-code', async (req, res) => {
-cd ~/SwiftLap && cat >> src/index.js << 'EOF'
-
-// Generate link code for watch pairing
-app.post('/api/watch/generate-code', async (req, res) => {
   try {
     const { swimmerId } = req.body;
     
@@ -1636,3 +1632,5 @@ app.post('/api/watch/verify-code', async (req, res) => {
     res.json({ swimmerId: data.swimmer_id });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
+
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
