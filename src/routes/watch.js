@@ -53,6 +53,19 @@ router.post('/watch/workout', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// Delete a watch workout
+router.delete('/watch/workout/:id', async (req, res) => {
+  try {
+    const { error } = await supabase
+      .from('watch_workouts')
+      .delete()
+      .eq('id', req.params.id);
+
+    if (error) return res.status(400).json({ error: error.message });
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 // Get watch workouts for a swimmer
 router.get('/watch/workouts/:swimmerId', async (req, res) => {
   try {

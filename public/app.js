@@ -684,8 +684,10 @@
       if (status) status.innerHTML = `✅ Watch linked &middot; ${data.workouts.length} workout${data.workouts.length === 1 ? '' : 's'} synced`;
       if (btn) btn.textContent = "Generate New Code";
       container.innerHTML = data.workouts.map(w => `
-        <div style="background:#1a1a2e;padding:10px;border-radius:8px;margin-bottom:8px;">
-          <div style="display:flex;justify-content:space-between;">
+        <div style="background:#1a1a2e;padding:10px;border-radius:8px;margin-bottom:8px;position:relative;">
+          <button onclick="deleteWatchWorkout('${w.id}')" title="Delete workout"
+            style="position:absolute;top:6px;right:6px;background:transparent;border:none;color:#888;font-size:16px;cursor:pointer;padding:2px 6px;">✕</button>
+          <div style="display:flex;justify-content:space-between;padding-right:24px;">
             <span>🏊 ${w.laps} laps (${w.distance}m)</span>
             <span style="color:#888">${new Date(w.created_at).toLocaleDateString()}</span>
           </div>
@@ -696,6 +698,17 @@
           </div>
         </div>
       `).join("");
+    }
+
+    async function deleteWatchWorkout(id) {
+      if (!confirm("Delete this workout?")) return;
+      const res = await fetch(`/api/watch/workout/${id}`, { method: "DELETE" });
+      if (res.ok) {
+        loadWatchWorkouts();
+      } else {
+        const data = await res.json().catch(() => ({}));
+        alert("Failed to delete: " + (data.error || res.status));
+      }
     }
 
     const savedUser = localStorage.getItem('user');
