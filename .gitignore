@@ -21,6 +21,11 @@ Thumbs.db
 # IDE
 .vscode/
 .idea/
+.claude/
+
+# Xcode user state (window layout, breakpoints — never share these)
+xcuserdata/
+*.xcuserstate
 
 # Build output
 dist/
