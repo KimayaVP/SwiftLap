@@ -309,7 +309,7 @@
         <div class="card"><h2>🤖 Feedback</h2><div id="feedbackList"></div></div>
         <div class="card"><h2>💬 Coach Feedback</h2><div id="coachFeedbackList"></div></div>
         <div class="card"><h2>🏅 Coach Badges</h2><div id="coachBadgesList"></div></div>
-        <div class="card"><h2>⌚ Apple Watch</h2><div id="watchSection"><button class="btn btn-primary" onclick="generateWatchCode()">Link Watch</button><div id="watchCode" style="margin-top:10px;font-size:24px;font-weight:bold;text-align:center;display:none;"></div><div id="watchWorkouts" style="margin-top:15px;"></div></div></div>
+        <div class="card"><h2>⌚ Apple Watch</h2><div id="watchSection"><div id="watchStatus" style="margin-bottom:10px;font-size:14px;color:#888;"></div><button id="generateCodeBtn" class="btn btn-primary" onclick="generateWatchCode()">Generate Watch Code</button><div id="watchCode" style="margin-top:10px;font-size:24px;font-weight:bold;text-align:center;display:none;"></div><div id="watchWorkouts" style="margin-top:15px;"></div></div></div>
         <div class="card"><h2>🏁 Meets & Races</h2><div id="meetsList"></div><button class="btn btn-primary btn-small" style="margin-top:12px;" onclick="showAddMeet()">+ Add Meet</button></div>
         <div id="addMeetSection" class="card" style="display:none;"><h2>🏁 Add Meet</h2><button class="btn btn-secondary btn-small" style="margin-bottom:12px;" onclick="hideAddMeet()">← Back</button><div class="form-group"><label>Meet Name</label><input type="text" id="meetName" placeholder="Summer Championships 2026"></div><div class="form-group"><label>Date</label><input type="date" id="meetDate"></div><div class="form-group"><label>Location</label><input type="text" id="meetLocation" placeholder="City Pool"></div><button class="btn btn-success" onclick="createMeet()">Create Meet</button></div>
         <div id="meetDetailSection" class="card" style="display:none;"><h2>🏁 <span id="meetDetailName"></span></h2><button class="btn btn-secondary btn-small" style="margin-bottom:12px;" onclick="hideMeetDetail()">← Back</button><div id="meetResultsList"></div><h4 style="margin-top:16px;margin-bottom:8px;">Add Race Result</h4><div class="form-group"><label>Stroke</label><select id="raceStroke"><option value="Freestyle">Freestyle</option><option value="Backstroke">Backstroke</option><option value="Breaststroke">Breaststroke</option><option value="Butterfly">Butterfly</option><option value="IM">IM</option></select></div><div class="form-group"><label>Distance</label><select id="raceDistance"><option value="50">50m</option><option value="100">100m</option><option value="200">200m</option><option value="400">400m</option></select></div><div class="form-group"><label>Time</label><div class="time-inputs"><input type="number" id="raceMinutes" placeholder="Min" min="0"><input type="number" id="raceSeconds" placeholder="Sec" min="0" max="59"></div></div><div class="form-group"><label>Place (optional)</label><input type="number" id="racePlace" placeholder="1" min="1"></div><div class="form-group"><label>Medal</label><select id="raceMedal"><option value="">None</option><option value="gold">🥇 Gold</option><option value="silver">🥈 Silver</option><option value="bronze">🥉 Bronze</option></select></div><button class="btn btn-success" onclick="addRaceResult()">Add Result</button></div>
@@ -1017,10 +1017,15 @@
       const res = await fetch(`/api/watch/workouts/${currentUser.id}`);
       const data = await res.json();
       const container = document.getElementById("watchWorkouts");
+      const status = document.getElementById("watchStatus");
+      const btn = document.getElementById("generateCodeBtn");
       if (!data.workouts || data.workouts.length === 0) {
+        if (status) status.innerHTML = "⌚ No watch linked yet";
         container.innerHTML = "<p style='color:#888'>No watch workouts yet</p>";
         return;
       }
+      if (status) status.innerHTML = `✅ Watch linked &middot; ${data.workouts.length} workout${data.workouts.length === 1 ? '' : 's'} synced`;
+      if (btn) btn.textContent = "Generate New Code";
       container.innerHTML = data.workouts.map(w => `
         <div style="background:#1a1a2e;padding:10px;border-radius:8px;margin-bottom:8px;">
           <div style="display:flex;justify-content:space-between;">
@@ -1041,4 +1046,3 @@
   </script>
 </body>
 </html>
-</script>
