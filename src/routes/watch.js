@@ -13,6 +13,13 @@ router.post('/watch/workout', async (req, res) => {
       fatigueLevel, poolLength, date, source
     } = req.body;
 
+    // Auto-clear demo rows on first real workout
+    await Promise.all([
+      supabase.from('watch_workouts').delete().eq('swimmer_id', swimmerId).eq('source', 'demo'),
+      supabase.from('goals').delete().eq('swimmer_id', swimmerId).eq('source', 'demo'),
+      supabase.from('swim_times').delete().eq('swimmer_id', swimmerId).eq('source', 'demo'),
+    ]);
+
     // Save workout to database
     const { data: workout, error } = await supabase
       .from('watch_workouts')

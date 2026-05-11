@@ -14,6 +14,43 @@ router.post('/auth/signup', async (req, res) => {
     const { data: profile, error } = await supabase.from('profiles').insert({ id: authData.user.id, email, name, role: role || 'swimmer' }).select().single();
     if (error) return res.status(400).json({ error: error.message });
     await trackEvent(profile.id, 'signup', { role: profile.role });
+
+    // Seed demo data so the dashboard isn't empty on first login
+    const now = new Date();
+    const lapCount = 60;
+    const lapTimeSeconds = 30;
+    await supabase.from('watch_workouts').insert({
+      swimmer_id: profile.id,
+      duration: 1800,
+      distance: 1500,
+      laps: lapCount,
+      stroke_count: lapCount * 15,
+      avg_heart_rate: 145,
+      calories: 420,
+      lap_times: Array(lapCount).fill(lapTimeSeconds),
+      lap_strokes: Array(lapCount).fill(15),
+      fatigue_level: 'Moderate 😊',
+      pool_length: 25,
+      workout_date: now.toISOString(),
+      source: 'demo'
+    });
+    await supabase.from('goals').insert({
+      swimmer_id: profile.id,
+      stroke: 'Freestyle',
+      distance: 100,
+      target_seconds: 90,
+      month: now.toISOString().slice(0, 7),
+      source: 'demo'
+    });
+    await supabase.from('swim_times').insert({
+      swimmer_id: profile.id,
+      stroke: 'Freestyle',
+      distance: 100,
+      time_seconds: 98,
+      date: now.toISOString().split('T')[0],
+      source: 'demo'
+    });
+
     res.json({ success: true, user: profile });
   } catch (e) { await logError(e, { route: 'signup' }); res.status(500).json({ error: e.message }); }
 });

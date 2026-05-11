@@ -676,6 +676,21 @@
       const container = document.getElementById("watchWorkouts");
       const status = document.getElementById("watchStatus");
       const btn = document.getElementById("generateCodeBtn");
+
+      const hasDemo = data.workouts?.some(w => w.source === 'demo');
+      let banner = document.getElementById('demoBanner');
+      if (hasDemo) {
+        if (!banner) {
+          banner = document.createElement('div');
+          banner.id = 'demoBanner';
+          banner.className = 'demo-banner';
+          banner.textContent = '📋 Showing sample data — log your first real swim to clear it.';
+          document.getElementById('dashboard').prepend(banner);
+        }
+      } else {
+        banner?.remove();
+      }
+
       if (!data.workouts || data.workouts.length === 0) {
         if (status) status.innerHTML = "⌚ No watch linked yet";
         container.innerHTML = "<p style='color:#888'>No watch workouts yet</p>";
