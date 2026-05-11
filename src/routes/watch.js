@@ -103,8 +103,8 @@ router.post('/watch/generate-code', async (req, res) => {
   try {
     const { swimmerId } = req.body;
 
-    // Generate 6-digit code
-    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    // Generate 4-digit code
+    const code = Math.floor(1000 + Math.random() * 9000).toString();
 
     // Store code with 10-minute expiry
     const { error } = await supabase
