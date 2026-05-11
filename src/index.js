@@ -8,6 +8,10 @@ const PORT = process.env.PORT || 3000;
 app.use(express.static(path.join(__dirname, '../public')));
 app.use(express.json());
 
+// Liveness probe pinged by the keepalive GitHub Action so the Render
+// free-tier dyno never sleeps during pool hours. Must stay cheap — no DB.
+app.get('/healthz', (req, res) => res.json({ ok: true }));
+
 // Mount all API routes under /api. Each router contains its own
 // path prefix (e.g. /goals, /watch) so the mount point is just /api.
 app.use('/api', require('./routes/auth'));

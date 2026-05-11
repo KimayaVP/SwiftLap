@@ -1,0 +1,17 @@
+name: Keep Render dyno warm
+
+# Pings /healthz every 10 minutes during pool hours (6am–10pm UTC) so the
+# Render free-tier dyno never sleeps when a friend opens the app.
+# workflow_dispatch lets us trigger a manual run for the first-time verification.
+
+on:
+  schedule:
+    - cron: '*/10 6-22 * * *'
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping /healthz
+        run: curl -fsS https://swiftlap.onrender.com/healthz
