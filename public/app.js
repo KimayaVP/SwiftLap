@@ -1,4 +1,5 @@
     let currentUser = null, accessToken = null, selectedFile = null;
+    let supabaseClient = null, pendingOAuthToken = null;
 
     async function track(eventType, eventData = {}) {
       if (!currentUser) return;
@@ -36,8 +37,66 @@
       const res = await fetch('/api/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: document.getElementById('loginEmail').value, password: document.getElementById('loginPassword').value }) });
       const data = await res.json();
       if (data.error) document.getElementById('error').textContent = data.error;
-      else { currentUser = data.user; accessToken = data.session.access_token; localStorage.setItem('token', accessToken); localStorage.setItem('user', JSON.stringify(currentUser)); showDashboard(); }
+      else completeLogin(data.user, data.session.access_token);
     });
+
+    function completeLogin(user, token) {
+      currentUser = user;
+      accessToken = token;
+      localStorage.setItem('token', token);
+      localStorage.setItem('user', JSON.stringify(user));
+      showDashboard();
+    }
+
+    // ========== GOOGLE / OAUTH SIGN-IN ==========
+    async function initAuth() {
+      try {
+        const cfg = await (await fetch('/api/config')).json();
+        if (cfg.supabaseUrl && cfg.supabaseAnonKey && window.supabase) {
+          supabaseClient = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseAnonKey);
+        }
+      } catch (e) { /* config unavailable — email login still works */ }
+
+      // Returning from an OAuth redirect leaves a session in the URL the client auto-parses.
+      if (supabaseClient) {
+        try {
+          const { data } = await supabaseClient.auth.getSession();
+          if (data?.session?.access_token) { await handleOAuthSession(data.session.access_token); return; }
+        } catch (e) {}
+      }
+
+      const savedUser = localStorage.getItem('user');
+      if (savedUser) { currentUser = JSON.parse(savedUser); accessToken = localStorage.getItem('token'); showDashboard(); }
+    }
+
+    async function signInWithGoogle() {
+      if (!supabaseClient) return alert('Google sign-in is not configured yet. Use email for now.');
+      const { error } = await supabaseClient.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.origin } });
+      if (error) document.getElementById('error').textContent = error.message;
+    }
+
+    async function handleOAuthSession(token) {
+      const res = await fetch('/api/auth/oauth-sync', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ accessToken: token }) });
+      const data = await res.json();
+      if (data.error) { document.getElementById('error').textContent = data.error; return; }
+      if (data.needsRole) {
+        pendingOAuthToken = token;
+        document.getElementById('rolePromptName').textContent = data.name || '';
+        document.getElementById('rolePromptModal').style.display = 'flex';
+        return;
+      }
+      completeLogin(data.user, token);
+    }
+
+    async function finishOAuthSignup(role) {
+      if (!pendingOAuthToken) return;
+      const res = await fetch('/api/auth/oauth-sync', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ accessToken: pendingOAuthToken, role }) });
+      const data = await res.json();
+      if (data.error) { document.getElementById('rolePromptError').textContent = data.error; return; }
+      document.getElementById('rolePromptModal').style.display = 'none';
+      completeLogin(data.user, pendingOAuthToken);
+      pendingOAuthToken = null;
+    }
 
     function showDashboard() {
       document.getElementById('authSection').classList.remove('active');
@@ -859,6 +918,7 @@
 
     function logout() {
       track('logout', {});
+      if (supabaseClient) supabaseClient.auth.signOut().catch(() => {});
       localStorage.removeItem('token'); localStorage.removeItem('user'); currentUser = null;
       document.getElementById('dashboard').classList.remove('active');
       document.getElementById('authSection').classList.add('active');
@@ -926,5 +986,4 @@
       }
     }
 
-    const savedUser = localStorage.getItem('user');
-    if (savedUser) { currentUser = JSON.parse(savedUser); accessToken = localStorage.getItem('token'); showDashboard(); }
+    initAuth();
