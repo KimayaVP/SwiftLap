@@ -69,11 +69,90 @@ router.post('/meets/add-result', async (req, res) => {
       stroke,
       distance: parseInt(distance),
       time_seconds: timeSeconds,
-      date: new Date().toISOString().split('T')[0]
+      date: new Date().toISOString().split('T')[0],
+      source: 'race'
     });
 
     await trackEvent(swimmerId, 'meet_result_added', { meetId, stroke, distance, isPB });
     res.json({ success: true, result: data, isPB });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Coach recommends a meet/race to one of their swimmers
+router.post('/meets/recommend', async (req, res) => {
+  try {
+    const { coachId, swimmerId, meetName, meetDate, location, stroke, distance, note } = req.body;
+    if (!coachId || !swimmerId || !meetName) {
+      return res.status(400).json({ error: 'coachId, swimmerId and meetName are required' });
+    }
+    const { data, error } = await supabase
+      .from('meet_recommendations')
+      .insert({
+        coach_id: coachId,
+        swimmer_id: swimmerId,
+        meet_name: meetName,
+        meet_date: meetDate || null,
+        location: location || null,
+        stroke: stroke || null,
+        distance: distance ? parseInt(distance) : null,
+        note: note || null
+      })
+      .select()
+      .single();
+    if (error) return res.status(400).json({ error: error.message });
+    await trackEvent(coachId, 'meet_recommended', { swimmerId, meetName });
+    res.json({ success: true, recommendation: data });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Swimmer views meets recommended to them
+router.get('/meets/recommendations/:swimmerId', async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('meet_recommendations')
+      .select('*')
+      .eq('swimmer_id', req.params.swimmerId)
+      .order('created_at', { ascending: false });
+    if (error) return res.status(400).json({ error: error.message });
+
+    // Attach coach names in one lookup
+    const coachIds = [...new Set((data || []).map(r => r.coach_id))];
+    let coachMap = {};
+    if (coachIds.length) {
+      const { data: coaches } = await supabase.from('profiles').select('id, name').in('id', coachIds);
+      coachMap = Object.fromEntries((coaches || []).map(c => [c.id, c.name]));
+    }
+    const recommendations = (data || []).map(r => ({ ...r, coachName: coachMap[r.coach_id] || 'Coach' }));
+    res.json({ recommendations });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Swimmer accepts/declines a recommendation
+router.post('/meets/recommendation/respond', async (req, res) => {
+  try {
+    const { recommendationId, status, swimmerId } = req.body;
+    if (!['accepted', 'declined'].includes(status)) {
+      return res.status(400).json({ error: 'status must be accepted or declined' });
+    }
+    const { data, error } = await supabase
+      .from('meet_recommendations')
+      .update({ status })
+      .eq('id', recommendationId)
+      .select()
+      .single();
+    if (error) return res.status(400).json({ error: error.message });
+
+    // Accepting creates an actual meet the swimmer can log results against
+    let meet = null;
+    if (status === 'accepted') {
+      const { data: m } = await supabase
+        .from('meets')
+        .insert({ name: data.meet_name, date: data.meet_date, location: data.location || null, created_by: swimmerId || data.swimmer_id })
+        .select()
+        .single();
+      meet = m;
+    }
+    res.json({ success: true, recommendation: data, meet });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 

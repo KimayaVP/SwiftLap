@@ -144,6 +144,23 @@ router.delete('/batches/:batchId', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// Batches a swimmer belongs to (read-only, swimmer-facing)
+router.get('/batches/swimmer/:swimmerId', async (req, res) => {
+  try {
+    const { data: members } = await supabase
+      .from('batch_members')
+      .select('coach_batches(id, name)')
+      .eq('swimmer_id', req.params.swimmerId);
+
+    const batches = (members || [])
+      .map(m => m.coach_batches)
+      .filter(Boolean)
+      .map(b => ({ id: b.id, name: b.name }));
+
+    res.json({ batches });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 // Parameterized route last
 router.get('/batches/:coachId', async (req, res) => {
   try {

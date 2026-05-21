@@ -51,7 +51,8 @@ router.post('/watch/workout', async (req, res) => {
         stroke: 'Freestyle', // Default, can be updated
         distance: poolLength,
         time_seconds: bestLapTime,
-        date: date?.split('T')[0] || new Date().toISOString().split('T')[0]
+        date: date?.split('T')[0] || new Date().toISOString().split('T')[0],
+        source: 'apple_watch'
       });
     }
 
@@ -102,6 +103,36 @@ router.post('/watch/link', async (req, res) => {
 
     await trackEvent(swimmerId, 'watch_linked', { watchId });
     res.json({ success: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Unlink watch from swimmer account
+router.post('/watch/unlink', async (req, res) => {
+  try {
+    const { swimmerId } = req.body;
+    const { error } = await supabase
+      .from('profiles')
+      .update({ watch_id: null, watch_linked_at: null })
+      .eq('id', swimmerId);
+    if (error) return res.status(400).json({ error: error.message });
+    await trackEvent(swimmerId, 'watch_unlinked', {});
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Watch link status for a swimmer
+router.get('/watch/status/:swimmerId', async (req, res) => {
+  try {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('watch_linked_at')
+      .eq('id', req.params.swimmerId)
+      .single();
+    const { count } = await supabase
+      .from('watch_workouts')
+      .select('*', { count: 'exact', head: true })
+      .eq('swimmer_id', req.params.swimmerId);
+    res.json({ linked: !!profile?.watch_linked_at, linkedAt: profile?.watch_linked_at || null, workoutCount: count || 0 });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 

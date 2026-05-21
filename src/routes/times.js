@@ -14,7 +14,7 @@ router.post('/times', async (req, res) => {
     const today = new Date().toISOString().split('T')[0];
     const { data: ex } = await supabase.from('swim_times').select('*').eq('swimmer_id', swimmerId).eq('stroke', stroke).eq('distance', parseInt(distance)).eq('date', today).eq('time_seconds', v.totalSeconds);
     if (ex?.length) return res.status(400).json({ error: 'Duplicate' });
-    const { data, error } = await supabase.from('swim_times').insert({ swimmer_id: swimmerId, stroke, distance: parseInt(distance), time_seconds: v.totalSeconds }).select().single();
+    const { data, error } = await supabase.from('swim_times').insert({ swimmer_id: swimmerId, stroke, distance: parseInt(distance), time_seconds: v.totalSeconds, source: 'manual' }).select().single();
     if (error) return res.status(400).json({ error: error.message });
 
     // Update streak and check badges

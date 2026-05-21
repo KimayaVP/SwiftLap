@@ -61,4 +61,52 @@ router.get('/race-plan/:swimmerId', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// Coach assigns a custom training routine to a swimmer
+router.post('/training-routines/assign', async (req, res) => {
+  try {
+    const { coachId, swimmerId, title, details } = req.body;
+    if (!coachId || !swimmerId || !title) {
+      return res.status(400).json({ error: 'coachId, swimmerId and title are required' });
+    }
+    const { data, error } = await supabase
+      .from('coach_routines')
+      .insert({ coach_id: coachId, swimmer_id: swimmerId, title, details: details || null })
+      .select()
+      .single();
+    if (error) return res.status(400).json({ error: error.message });
+    await trackEvent(coachId, 'routine_assigned', { swimmerId, title });
+    res.json({ success: true, routine: data });
+  } catch (e) { await logError(e, { route: 'routine-assign' }); res.status(500).json({ error: e.message }); }
+});
+
+// Swimmer views routines assigned by their coach
+router.get('/training-routines/:swimmerId', async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('coach_routines')
+      .select('*')
+      .eq('swimmer_id', req.params.swimmerId)
+      .order('created_at', { ascending: false });
+    if (error) return res.status(400).json({ error: error.message });
+
+    const coachIds = [...new Set((data || []).map(r => r.coach_id))];
+    let coachMap = {};
+    if (coachIds.length) {
+      const { data: coaches } = await supabase.from('profiles').select('id, name').in('id', coachIds);
+      coachMap = Object.fromEntries((coaches || []).map(c => [c.id, c.name]));
+    }
+    const routines = (data || []).map(r => ({ ...r, coachName: coachMap[r.coach_id] || 'Coach' }));
+    res.json({ routines });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Coach or swimmer removes an assigned routine
+router.delete('/training-routines/:id', async (req, res) => {
+  try {
+    const { error } = await supabase.from('coach_routines').delete().eq('id', req.params.id);
+    if (error) return res.status(400).json({ error: error.message });
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 module.exports = router;

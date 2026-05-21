@@ -21,6 +21,47 @@
     <div class="header">
       <h1>🏊 SwiftLapLogic</h1>
       <p>Track. Analyze. Improve.</p>
+      <button id="settingsGear" class="settings-gear" onclick="openSettings()" style="display:none;" title="Settings">⚙️</button>
+    </div>
+
+    <div id="settingsModal" class="modal-overlay" style="display:none;">
+      <div class="modal-card">
+        <div class="modal-header">
+          <h2>⚙️ Settings</h2>
+          <button class="modal-close" onclick="closeSettings()">✕</button>
+        </div>
+        <div class="settings-row">
+          <div>
+            <div style="font-weight:600;">Show on Coach Leaderboard</div>
+            <div style="font-size:0.75rem;color:#94a3b8;">Others can see you in rankings</div>
+          </div>
+          <label style="position:relative;display:inline-block;width:50px;height:28px;flex-shrink:0;">
+            <input type="checkbox" id="leaderboardToggle" onchange="toggleLeaderboardVisibility()" style="opacity:0;width:0;height:0;">
+            <span style="position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;background:#475569;border-radius:28px;transition:.3s;"></span>
+            <span id="toggleSlider" style="position:absolute;height:20px;width:20px;left:4px;bottom:4px;background:white;border-radius:50%;transition:.3s;"></span>
+          </label>
+        </div>
+        <div class="settings-section">
+          <h3>⌚ Apple Watch</h3>
+          <div id="watchStatus" style="margin-bottom:10px;font-size:0.85rem;color:#94a3b8;">Checking…</div>
+          <button id="generateCodeBtn" class="btn btn-primary btn-small" onclick="generateWatchCode()">Generate Watch Code</button>
+          <div id="watchCode" style="margin-top:10px;font-size:1.3rem;font-weight:bold;text-align:center;display:none;"></div>
+          <button id="unlinkWatchBtn" class="btn btn-danger btn-small" style="margin-top:8px;display:none;" onclick="unlinkWatch()">Unlink Watch</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="intensityModal" class="modal-overlay" style="display:none;">
+      <div class="modal-card">
+        <div class="modal-header">
+          <h2>ℹ️ Why these intensity levels?</h2>
+          <button class="modal-close" onclick="closeIntensityInfo()">✕</button>
+        </div>
+        <p style="font-size:0.85rem;color:#94a3b8;margin-bottom:14px;">Your plan's intensity is set automatically from how far your best logged time is from your active goal.</p>
+        <div class="legend-row"><span class="intensity-badge intensity-high">HIGH</span><span>More than 5s away from your goal — heavy race-pace &amp; threshold work to close the gap.</span></div>
+        <div class="legend-row"><span class="intensity-badge intensity-moderate">MODERATE</span><span>Within 5s of your goal — speed &amp; race-simulation sets to sharpen.</span></div>
+        <div class="legend-row"><span class="intensity-badge intensity-maintenance">MAINTENANCE</span><span>Goal already achieved — technique &amp; consistency to hold your form.</span></div>
+      </div>
     </div>
 
     <div id="authSection" class="auth-section active">
@@ -70,7 +111,7 @@
             <div class="summary-box"><div class="number" id="noGoalsCount">0</div><div class="label">No Goals</div></div>
           </div>
         </div>
-        <div class="leaderboard-card"><h2>🏆 Leaderboard</h2><div id="coachLeaderboard"></div></div>
+        <div class="leaderboard-card"><h2>🏆 Coach Leaderboard</h2><div id="coachLeaderboard"></div></div>
         <div class="card"><h2>👥 Swimmers</h2><div id="coachSwimmersList"></div></div>
         <div id="swimmerCommentSection" class="card" style="display:none;"><h2>💬 Comment on <span id="commentSwimmerName"></span></h2><button class="btn btn-secondary btn-small" style="margin-bottom:12px;" onclick="hideCommentSection()">← Back</button><div id="swimmerTimesForComment"></div><div style="margin-top:16px;"><h4 style="margin-bottom:8px;">Quick Reactions</h4><div style="display:flex;gap:8px;margin-bottom:12px;"><button class="btn btn-small" style="font-size:1.2rem;" onclick="addReaction('🔥')">🔥</button><button class="btn btn-small" style="font-size:1.2rem;" onclick="addReaction('💪')">💪</button><button class="btn btn-small" style="font-size:1.2rem;" onclick="addReaction('👏')">👏</button><button class="btn btn-small" style="font-size:1.2rem;" onclick="addReaction('⭐')">⭐</button></div><h4 style="margin-bottom:8px;">Add Comment</h4><textarea id="coachCommentText" placeholder="Great job on your times!" style="width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.05);color:white;min-height:80px;margin-bottom:8px;"></textarea><button class="btn btn-primary btn-small" onclick="addComment()">Send Comment</button></div></div>
         <div id="awardBadgeSection" class="card" style="display:none;"><h2>🏅 Award Badge to <span id="badgeSwimmerName"></span></h2><button class="btn btn-secondary btn-small" style="margin-bottom:12px;" onclick="hideAwardBadge()">← Back</button><h4 style="margin-bottom:8px;">Select Badge</h4><div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;" id="badgeOptions"></div><div id="selectedBadgePreview" style="display:none;padding:12px;background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.3);border-radius:10px;margin-bottom:12px;text-align:center;"><span id="selectedBadgeIcon" style="font-size:2rem;"></span><div id="selectedBadgeName" style="font-weight:600;color:#fbbf24;"></div></div><div class="form-group"><label>Personal Message (optional)</label><textarea id="badgeMessage" placeholder="Congratulations!" style="width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.05);color:white;min-height:60px;"></textarea></div><button class="btn btn-success" onclick="awardBadge()">Award Badge</button></div>
@@ -89,96 +130,195 @@
           <h2>⏳ Pending Invites Sent</h2>
           <div id="outgoingInvitesList"></div>
         </div>
-      </div>
-      
-      <div id="swimmerSection" style="display:none;">
-        <!-- No Coach Banner -->
-        <div id="noCoachBanner" class="no-coach-banner" style="display:none;">
-          <h4>🏊 Training Solo</h4>
-          <p>You're not linked to a coach yet. Find a coach to join their team!</p>
-          <button class="btn btn-primary btn-small" onclick="showFindCoach()">Find Coach</button>
-        </div>
-        
-        <!-- Find Coach Modal -->
-        <div id="findCoachSection" class="card" style="display:none;">
-          <h2>🔍 Find a Coach</h2>
-          <div class="form-group coach-search">
-            <label>Search by name</label>
-            <input type="text" id="coachSearchInput" placeholder="Type coach name..." oninput="searchCoaches()">
-            <div id="coachResults" class="coach-results" style="display:none;"></div>
-          </div>
-          <div id="outgoingRequests"></div>
-          <button class="btn btn-secondary btn-small" onclick="hideFindCoach()">Cancel</button>
-        </div>
-        
-        <div class="card" id="groupsSection"><h2>👥 Friend Groups</h2><div id="myGroups"></div><div style="margin-top:12px;"><button class="btn btn-primary btn-small" onclick="showCreateGroup()">Create Group</button><button class="btn btn-secondary btn-small" style="margin-left:8px;" onclick="showJoinGroup()">Join Group</button></div><div id="createGroupForm" style="display:none;margin-top:12px;"><input type="text" id="newGroupName" placeholder="Group name" style="width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.05);color:white;margin-bottom:8px;"><button class="btn btn-success btn-small" onclick="createGroup()">Create</button><button class="btn btn-secondary btn-small" onclick="hideGroupForms()">Cancel</button></div><div id="joinGroupForm" style="display:none;margin-top:12px;"><input type="text" id="joinCode" placeholder="Enter invite code" style="width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.05);color:white;margin-bottom:8px;text-transform:uppercase;"><button class="btn btn-success btn-small" onclick="joinGroup()">Join</button><button class="btn btn-secondary btn-small" onclick="hideGroupForms()">Cancel</button></div></div><div id="groupLeaderboardSection" class="leaderboard-card" style="display:none;"><h2>🏆 <span id="groupLeaderboardName"></span></h2><button class="btn btn-secondary btn-small" style="margin-bottom:12px;" onclick="hideGroupLeaderboard()">← Back</button><div id="groupLeaderboard"></div></div><div id="myRankSection" class="my-rank-card" style="display:none;">
-          <div class="rank-label">Your Rank</div>
-          <div class="rank-big" id="myRank">-</div>
-          <div class="delta" id="myDelta"></div>
-          <div class="improvement-trend">
-            <div class="trend-item"><div class="value" id="myImprovement">-</div><div class="label">Improvement</div></div>
-            <div class="trend-item"><div class="value" id="myConsistency">-</div><div class="label">Consistency</div></div>
-            <div class="trend-item"><div class="value" id="myGoalRate">-</div><div class="label">Goals</div></div>
-          </div>
-        </div>
-        
-        <div class="achievements-card">
-          <h2>🏅 Achievements</h2>
-          <div class="streak-display">
-            <div class="streak-item"><div>🔥</div><div class="number" id="currentStreak">0</div><div class="label">Day Streak</div></div>
-            <div class="streak-item"><div>⭐</div><div class="number" id="longestStreak">0</div><div class="label">Best Streak</div></div>
-          </div>
-          <div id="weeklyChallenge" class="card" style="margin-bottom:16px;"></div>
-          <h4 style="margin-bottom:12px;color:#fbbf24;">Badges</h4>
-          <div class="badges-grid" id="badgesGrid"></div>
-        </div>
-        
-        <div class="training-plan-card"><h2>📅 Training</h2><div id="trainingPlanContent"><p class="empty-state">Loading...</p></div></div>
-        <div class="insights-card"><h2>📊 Insights</h2><div id="insightsContent"><p class="empty-state">Loading...</p></div></div>
-        <div class="card"><h2>🎯 Goals</h2><p style="font-size:0.8rem;color:#94a3b8;margin-bottom:12px;">Tap a goal to make it active for training</p><div id="goalsList"></div></div>
         <div class="card">
-          <h2>🎥 Upload Video</h2>
-          <div id="uploadContainer">
-            <form id="videoForm">
-              <div class="form-group"><label>Stroke</label><select id="videoStroke"><option value="Freestyle">Freestyle</option><option value="Backstroke">Backstroke</option><option value="Breaststroke">Breaststroke</option><option value="Butterfly">Butterfly</option><option value="IM">IM</option></select></div>
-              <div class="upload-area" id="uploadArea">
-                <input type="file" id="videoFile" accept="video/*">
-                <div style="font-size:2rem;">📹</div>
-                <div style="color:#94a3b8;">Tap to select</div>
-                <div class="file-selected" id="fileSelected"></div>
-              </div>
-              <button type="submit" class="btn btn-purple" style="margin-top:14px;" id="uploadBtn" disabled>Upload</button>
+          <h2>🏁 Recommend a Meet</h2>
+          <p style="font-size:0.85rem;color:#94a3b8;margin-bottom:12px;">Suggest a meet or race to one of your swimmers — they'll see it in their Meets &amp; Races.</p>
+          <div class="form-group"><label>Swimmer</label><select id="recSwimmerSelect"><option value="">Select swimmer...</option></select></div>
+          <div class="form-group"><label>Meet / Race Name</label><input type="text" id="recMeetName" placeholder="Regional Championships"></div>
+          <div class="form-group"><label>Date (optional)</label><input type="date" id="recMeetDate"></div>
+          <div class="form-group"><label>Location (optional)</label><input type="text" id="recMeetLocation" placeholder="City Pool"></div>
+          <div class="form-group"><label>Recommended Event (optional)</label><div class="time-inputs"><select id="recStroke"><option value="">Any stroke</option><option value="Freestyle">Freestyle</option><option value="Backstroke">Backstroke</option><option value="Breaststroke">Breaststroke</option><option value="Butterfly">Butterfly</option><option value="IM">IM</option></select><select id="recDistance"><option value="">Any dist.</option><option value="50">50m</option><option value="100">100m</option><option value="200">200m</option><option value="400">400m</option></select></div></div>
+          <div class="form-group"><label>Note (optional)</label><textarea id="recNote" placeholder="Great fit for your 50m freestyle goal!" style="width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.05);color:white;min-height:60px;"></textarea></div>
+          <button class="btn btn-primary" onclick="sendMeetRecommendation()">Send Recommendation</button>
+          <div id="recStatus" style="margin-top:10px;"></div>
+        </div>
+        <div class="card">
+          <h2>🎯 Assign Goal or Routine</h2>
+          <p style="font-size:0.85rem;color:#94a3b8;margin-bottom:12px;">Assign directly to a swimmer — it appears in their app marked with a 👨‍🏫 coach badge.</p>
+          <div class="form-group"><label>Swimmer</label><select id="assignSwimmerSelect"><option value="">Select swimmer...</option></select></div>
+          <h4 style="margin:8px 0 12px;color:#22c55e;">Assign a Goal</h4>
+          <div class="form-group"><label>Stroke</label><select id="assignGoalStroke"><option value="Freestyle">Freestyle</option><option value="Backstroke">Backstroke</option><option value="Breaststroke">Breaststroke</option><option value="Butterfly">Butterfly</option><option value="IM">IM</option></select></div>
+          <div class="form-group"><label>Distance</label><select id="assignGoalDistance"><option value="50">50m</option><option value="100">100m</option><option value="200">200m</option><option value="400">400m</option></select></div>
+          <div class="form-group"><label>Target</label><div class="time-inputs"><input type="number" id="assignGoalMin" placeholder="Min" min="0"><input type="number" id="assignGoalSec" placeholder="Sec" min="0" max="59"></div></div>
+          <button class="btn btn-success" onclick="assignGoal()">Assign Goal</button>
+          <h4 style="margin:20px 0 12px;color:#0ea5e9;">Assign a Training Routine</h4>
+          <div class="form-group"><label>Title</label><input type="text" id="assignRoutineTitle" placeholder="Endurance week: 3x400m"></div>
+          <div class="form-group"><label>Details</label><textarea id="assignRoutineDetails" placeholder="Mon/Wed/Fri: 400m warmup, 8x50m sprints @ 1:00 rest, 200m cooldown..." style="width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.05);color:white;min-height:80px;"></textarea></div>
+          <button class="btn btn-primary" onclick="assignRoutine()">Assign Routine</button>
+          <div id="assignStatus" style="margin-top:10px;"></div>
+        </div>
+      </div>
+
+      <div id="swimmerSection" style="display:none;">
+        <div id="homeView">
+          <!-- No Coach Banner -->
+          <div id="noCoachBanner" class="no-coach-banner" style="display:none;">
+            <h4>🏊 Training Solo</h4>
+            <p>You're not linked to a coach yet. Find a coach to join their team!</p>
+            <button class="btn btn-primary btn-small" onclick="showFindCoach()">Find Coach</button>
+          </div>
+
+          <!-- Find Coach Modal -->
+          <div id="findCoachSection" class="card" style="display:none;">
+            <h2>🔍 Find a Coach</h2>
+            <div class="form-group coach-search">
+              <label>Search by name</label>
+              <input type="text" id="coachSearchInput" placeholder="Type coach name..." oninput="searchCoaches()">
+              <div id="coachResults" class="coach-results" style="display:none;"></div>
+            </div>
+            <div id="outgoingRequests"></div>
+            <button class="btn btn-secondary btn-small" onclick="hideFindCoach()">Cancel</button>
+          </div>
+
+          <div id="squadBanner" class="squad-banner" style="display:none;"></div>
+
+          <!-- Tile grid -->
+          <div class="tile-grid">
+            <div class="tile" onclick="showSection('achievements')"><div class="tile-icon">🏅</div><div class="tile-label">Achievements</div></div>
+            <div class="tile" onclick="showSection('training')"><div class="tile-icon">📅</div><div class="tile-label">Training</div></div>
+            <div class="tile" onclick="showSection('goals')"><div class="tile-icon">🎯</div><div class="tile-label">Goals</div></div>
+            <div class="tile" onclick="showSection('recents')"><div class="tile-icon">📊</div><div class="tile-label">Recents</div></div>
+            <div class="tile" onclick="showSection('meets')"><div class="tile-icon">🏁</div><div class="tile-label">Meets &amp; Races</div></div>
+            <div class="tile" onclick="showSection('insights')"><div class="tile-icon">📈</div><div class="tile-label">Insights &amp; Rank</div></div>
+            <div class="tile" onclick="showSection('video')"><div class="tile-icon">🎥</div><div class="tile-label">Video &amp; Feedback</div></div>
+            <div class="tile" onclick="showSection('friends')"><div class="tile-icon">👥</div><div class="tile-label">Friends</div></div>
+          </div>
+        </div>
+
+        <!-- SECTION: Achievements -->
+        <div class="section-view" id="view-achievements" style="display:none;">
+          <button class="btn btn-secondary btn-small back-btn" onclick="showHome()">← Back</button>
+          <div class="achievements-card">
+            <h2>🏅 Achievements</h2>
+            <div class="streak-display">
+              <div class="streak-item"><div>🔥</div><div class="number" id="currentStreak">0</div><div class="label">Day Streak</div></div>
+              <div class="streak-item"><div>⭐</div><div class="number" id="longestStreak">0</div><div class="label">Best Streak</div></div>
+            </div>
+            <div id="weeklyChallenge" class="card" style="margin-bottom:16px;"></div>
+            <h4 style="margin-bottom:12px;color:#fbbf24;">Badges</h4>
+            <div class="badges-grid" id="badgesGrid"></div>
+          </div>
+          <div class="card"><h2>🏅 Coach Badges</h2><div id="coachBadgesList"></div></div>
+        </div>
+
+        <!-- SECTION: Training -->
+        <div class="section-view" id="view-training" style="display:none;">
+          <button class="btn btn-secondary btn-small back-btn" onclick="showHome()">← Back</button>
+          <div id="coachRoutinesContainer"></div>
+          <div class="training-plan-card"><h2>📅 Training <button class="info-icon" onclick="openIntensityInfo()" title="Why these intensity levels?">i</button></h2><div id="trainingPlanContent"><p class="empty-state">Loading...</p></div></div>
+        </div>
+
+        <!-- SECTION: Goals -->
+        <div class="section-view" id="view-goals" style="display:none;">
+          <button class="btn btn-secondary btn-small back-btn" onclick="showHome()">← Back</button>
+          <div class="card"><h2>🎯 Goals</h2><p style="font-size:0.8rem;color:#94a3b8;margin-bottom:12px;">Tap a goal to make it active for training. Goals auto-sync from your logged times, races and watch data.</p><div id="goalsList"></div></div>
+          <div class="card">
+            <h2>🎯 Set Goal</h2>
+            <form id="setGoalForm">
+              <div class="form-group"><label>Stroke</label><select id="goalStroke"><option value="Freestyle">Freestyle</option><option value="Backstroke">Backstroke</option><option value="Breaststroke">Breaststroke</option><option value="Butterfly">Butterfly</option><option value="IM">IM</option></select></div>
+              <div class="form-group"><label>Distance</label><select id="goalDistance"><option value="50">50m</option><option value="100">100m</option><option value="200">200m</option><option value="400">400m</option></select></div>
+              <div class="form-group"><label>Target</label><div class="time-inputs"><input type="number" id="goalMinutes" placeholder="Min" min="0" required><input type="number" id="goalSeconds" placeholder="Sec" min="0" max="59" required></div></div>
+              <button type="submit" class="btn btn-success">Set</button>
             </form>
           </div>
-          <div id="processingState" class="processing" style="display:none;"><div class="spinner"></div><div>Analyzing...</div></div>
         </div>
-        <div class="card"><h2>🤖 Feedback</h2><div id="feedbackList"></div></div>
-        <div class="card"><h2>💬 Coach Feedback</h2><div id="coachFeedbackList"></div></div>
-        <div class="card"><h2>🏅 Coach Badges</h2><div id="coachBadgesList"></div></div>
-        <div class="card"><h2>⌚ Apple Watch</h2><div id="watchSection"><div id="watchStatus" style="margin-bottom:10px;font-size:14px;color:#888;"></div><button id="generateCodeBtn" class="btn btn-primary" onclick="generateWatchCode()">Generate Watch Code</button><div id="watchCode" style="margin-top:10px;font-size:24px;font-weight:bold;text-align:center;display:none;"></div><div id="watchWorkouts" style="margin-top:15px;"></div></div></div>
-        <div class="card"><h2>🏁 Meets & Races</h2><div id="meetsList"></div><button class="btn btn-primary btn-small" style="margin-top:12px;" onclick="showAddMeet()">+ Add Meet</button></div>
-        <div id="addMeetSection" class="card" style="display:none;"><h2>🏁 Add Meet</h2><button class="btn btn-secondary btn-small" style="margin-bottom:12px;" onclick="hideAddMeet()">← Back</button><div class="form-group"><label>Meet Name</label><input type="text" id="meetName" placeholder="Summer Championships 2026"></div><div class="form-group"><label>Date</label><input type="date" id="meetDate"></div><div class="form-group"><label>Location</label><input type="text" id="meetLocation" placeholder="City Pool"></div><button class="btn btn-success" onclick="createMeet()">Create Meet</button></div>
-        <div id="meetDetailSection" class="card" style="display:none;"><h2>🏁 <span id="meetDetailName"></span></h2><button class="btn btn-secondary btn-small" style="margin-bottom:12px;" onclick="hideMeetDetail()">← Back</button><div id="meetResultsList"></div><h4 style="margin-top:16px;margin-bottom:8px;">Add Race Result</h4><div class="form-group"><label>Stroke</label><select id="raceStroke"><option value="Freestyle">Freestyle</option><option value="Backstroke">Backstroke</option><option value="Breaststroke">Breaststroke</option><option value="Butterfly">Butterfly</option><option value="IM">IM</option></select></div><div class="form-group"><label>Distance</label><select id="raceDistance"><option value="50">50m</option><option value="100">100m</option><option value="200">200m</option><option value="400">400m</option></select></div><div class="form-group"><label>Time</label><div class="time-inputs"><input type="number" id="raceMinutes" placeholder="Min" min="0"><input type="number" id="raceSeconds" placeholder="Sec" min="0" max="59"></div></div><div class="form-group"><label>Place (optional)</label><input type="number" id="racePlace" placeholder="1" min="1"></div><div class="form-group"><label>Medal</label><select id="raceMedal"><option value="">None</option><option value="gold">🥇 Gold</option><option value="silver">🥈 Silver</option><option value="bronze">🥉 Bronze</option></select></div><button class="btn btn-success" onclick="addRaceResult()">Add Result</button></div>
-        <div class="card">
-          <h2>⏱️ Log Time</h2>
-          <form id="logTimeForm">
-            <div class="form-group"><label>Stroke</label><select id="timeStroke"><option value="Freestyle">Freestyle</option><option value="Backstroke">Backstroke</option><option value="Breaststroke">Breaststroke</option><option value="Butterfly">Butterfly</option><option value="IM">IM</option></select></div>
-            <div class="form-group"><label>Distance</label><select id="timeDistance"><option value="50">50m</option><option value="100">100m</option><option value="200">200m</option><option value="400">400m</option></select></div>
-            <div class="form-group"><label>Time</label><div class="time-inputs"><input type="number" id="timeMinutes" placeholder="Min" min="0" max="30" required><input type="number" id="timeSeconds" placeholder="Sec" min="0" max="59" required></div></div>
-            <button type="submit" class="btn btn-primary">Log</button>
-          </form>
+
+        <!-- SECTION: Recents -->
+        <div class="section-view" id="view-recents" style="display:none;">
+          <button class="btn btn-secondary btn-small back-btn" onclick="showHome()">← Back</button>
+          <div class="card">
+            <h2>📊 Recents</h2>
+            <p style="font-size:0.75rem;color:#94a3b8;margin-bottom:10px;">✍️ manual · ⌚ Apple Watch · 🏁 race</p>
+            <div class="filter-bar">
+              <button class="filter-btn active" data-filter="today" onclick="setRecentsFilter('today', this)">Today</button>
+              <button class="filter-btn" data-filter="week" onclick="setRecentsFilter('week', this)">This Week</button>
+              <button class="filter-btn" data-filter="month" onclick="setRecentsFilter('month', this)">This Month</button>
+              <button class="filter-btn" data-filter="history" onclick="setRecentsFilter('history', this)">History</button>
+            </div>
+            <div id="historyDateWrap" style="display:none;margin-bottom:12px;">
+              <label style="display:block;margin-bottom:5px;color:#94a3b8;font-size:0.8rem;">Filter by date</label>
+              <div style="display:flex;gap:8px;">
+                <input type="date" id="historyDate" onchange="renderTimes()" style="flex:1;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.05);color:white;">
+                <button class="btn btn-secondary btn-small" onclick="clearHistoryDate()">Clear</button>
+              </div>
+            </div>
+            <div id="timesList"></div>
+          </div>
+          <div class="card">
+            <h2>⏱️ Log Time</h2>
+            <form id="logTimeForm">
+              <div class="form-group"><label>Stroke</label><select id="timeStroke"><option value="Freestyle">Freestyle</option><option value="Backstroke">Backstroke</option><option value="Breaststroke">Breaststroke</option><option value="Butterfly">Butterfly</option><option value="IM">IM</option></select></div>
+              <div class="form-group"><label>Distance</label><select id="timeDistance"><option value="50">50m</option><option value="100">100m</option><option value="200">200m</option><option value="400">400m</option></select></div>
+              <div class="form-group"><label>Time</label><div class="time-inputs"><input type="number" id="timeMinutes" placeholder="Min" min="0" max="30" required><input type="number" id="timeSeconds" placeholder="Sec" min="0" max="59" required></div></div>
+              <button type="submit" class="btn btn-primary">Log</button>
+            </form>
+          </div>
         </div>
-        <div class="card">
-        <div class="card"><h2>⚙️ Settings</h2><div style="display:flex;justify-content:space-between;align-items:center;padding:10px;background:rgba(255,255,255,0.03);border-radius:8px;"><div><div style="font-weight:600;">Show on Leaderboards</div><div style="font-size:0.75rem;color:#94a3b8;">Others can see you in rankings</div></div><label style="position:relative;display:inline-block;width:50px;height:28px;"><input type="checkbox" id="leaderboardToggle" onchange="toggleLeaderboardVisibility()" style="opacity:0;width:0;height:0;"><span style="position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;background:#475569;border-radius:28px;transition:.3s;"></span><span id="toggleSlider" style="position:absolute;content:\;height:20px;width:20px;left:4px;bottom:4px;background:white;border-radius:50%;transition:.3s;"></span></label></div></div>
-          <h2>🎯 Set Goal</h2>
-          <form id="setGoalForm">
-            <div class="form-group"><label>Stroke</label><select id="goalStroke"><option value="Freestyle">Freestyle</option><option value="Backstroke">Backstroke</option><option value="Breaststroke">Breaststroke</option><option value="Butterfly">Butterfly</option><option value="IM">IM</option></select></div>
-            <div class="form-group"><label>Distance</label><select id="goalDistance"><option value="50">50m</option><option value="100">100m</option><option value="200">200m</option><option value="400">400m</option></select></div>
-            <div class="form-group"><label>Target</label><div class="time-inputs"><input type="number" id="goalMinutes" placeholder="Min" min="0" required><input type="number" id="goalSeconds" placeholder="Sec" min="0" max="59" required></div></div>
-            <button type="submit" class="btn btn-success">Set</button>
-          </form>
+
+        <!-- SECTION: Meets & Races -->
+        <div class="section-view" id="view-meets" style="display:none;">
+          <button class="btn btn-secondary btn-small back-btn" onclick="showHome()">← Back</button>
+          <div class="card"><h2>📨 Coach Recommendations</h2><div id="meetRecsList"><p class="empty-state">Loading...</p></div></div>
+          <div class="card"><h2>🏁 Meets & Races</h2><div id="meetsList"></div><button class="btn btn-primary btn-small" style="margin-top:12px;" onclick="showAddMeet()">+ Add Meet</button></div>
+          <div id="addMeetSection" class="card" style="display:none;"><h2>🏁 Add Meet</h2><button class="btn btn-secondary btn-small" style="margin-bottom:12px;" onclick="hideAddMeet()">← Back</button><div class="form-group"><label>Meet Name</label><input type="text" id="meetName" placeholder="Summer Championships 2026"></div><div class="form-group"><label>Date</label><input type="date" id="meetDate"></div><div class="form-group"><label>Location</label><input type="text" id="meetLocation" placeholder="City Pool"></div><button class="btn btn-success" onclick="createMeet()">Create Meet</button></div>
+          <div id="meetDetailSection" class="card" style="display:none;"><h2>🏁 <span id="meetDetailName"></span></h2><button class="btn btn-secondary btn-small" style="margin-bottom:12px;" onclick="hideMeetDetail()">← Back</button><div id="meetResultsList"></div><h4 style="margin-top:16px;margin-bottom:8px;">Add Race Result</h4><div class="form-group"><label>Stroke</label><select id="raceStroke"><option value="Freestyle">Freestyle</option><option value="Backstroke">Backstroke</option><option value="Breaststroke">Breaststroke</option><option value="Butterfly">Butterfly</option><option value="IM">IM</option></select></div><div class="form-group"><label>Distance</label><select id="raceDistance"><option value="50">50m</option><option value="100">100m</option><option value="200">200m</option><option value="400">400m</option></select></div><div class="form-group"><label>Time</label><div class="time-inputs"><input type="number" id="raceMinutes" placeholder="Min" min="0"><input type="number" id="raceSeconds" placeholder="Sec" min="0" max="59"></div></div><div class="form-group"><label>Place (optional)</label><input type="number" id="racePlace" placeholder="1" min="1"></div><div class="form-group"><label>Medal</label><select id="raceMedal"><option value="">None</option><option value="gold">🥇 Gold</option><option value="silver">🥈 Silver</option><option value="bronze">🥉 Bronze</option></select></div><button class="btn btn-success" onclick="addRaceResult()">Add Result</button></div>
         </div>
-        <div class="card"><h2>📊 Recent</h2><div id="timesList"></div></div>
+
+        <!-- SECTION: Insights & Rank -->
+        <div class="section-view" id="view-insights" style="display:none;">
+          <button class="btn btn-secondary btn-small back-btn" onclick="showHome()">← Back</button>
+          <div id="myRankSection" class="my-rank-card" style="display:none;">
+            <div class="rank-label">Your Rank</div>
+            <div class="rank-big" id="myRank">-</div>
+            <div class="delta" id="myDelta"></div>
+            <div class="improvement-trend">
+              <div class="trend-item"><div class="value" id="myImprovement">-</div><div class="label">Improvement</div></div>
+              <div class="trend-item"><div class="value" id="myConsistency">-</div><div class="label">Consistency</div></div>
+              <div class="trend-item"><div class="value" id="myGoalRate">-</div><div class="label">Goals</div></div>
+            </div>
+          </div>
+          <div class="insights-card"><h2>📊 Insights</h2><div id="insightsContent"><p class="empty-state">Loading...</p></div></div>
+        </div>
+
+        <!-- SECTION: Video & Feedback -->
+        <div class="section-view" id="view-video" style="display:none;">
+          <button class="btn btn-secondary btn-small back-btn" onclick="showHome()">← Back</button>
+          <div class="card">
+            <h2>🎥 Upload Video</h2>
+            <div id="uploadContainer">
+              <form id="videoForm">
+                <div class="form-group"><label>Stroke</label><select id="videoStroke"><option value="Freestyle">Freestyle</option><option value="Backstroke">Backstroke</option><option value="Breaststroke">Breaststroke</option><option value="Butterfly">Butterfly</option><option value="IM">IM</option></select></div>
+                <div class="upload-area" id="uploadArea">
+                  <input type="file" id="videoFile" accept="video/*">
+                  <div style="font-size:2rem;">📹</div>
+                  <div style="color:#94a3b8;">Tap to select</div>
+                  <div class="file-selected" id="fileSelected"></div>
+                </div>
+                <button type="submit" class="btn btn-purple" style="margin-top:14px;" id="uploadBtn" disabled>Upload</button>
+              </form>
+            </div>
+            <div id="processingState" class="processing" style="display:none;"><div class="spinner"></div><div>Analyzing...</div></div>
+          </div>
+          <div class="card"><h2>🤖 Feedback</h2><div id="feedbackList"></div></div>
+          <div class="card"><h2>💬 Coach Feedback</h2><div id="coachFeedbackList"></div></div>
+        </div>
+
+        <!-- SECTION: Friends -->
+        <div class="section-view" id="view-friends" style="display:none;">
+          <button class="btn btn-secondary btn-small back-btn" onclick="showHome()">← Back</button>
+          <div class="card" id="groupsSection"><h2>👥 Friend Groups</h2><div id="myGroups"></div><div style="margin-top:12px;"><button class="btn btn-primary btn-small" onclick="showCreateGroup()">Create Group</button><button class="btn btn-secondary btn-small" style="margin-left:8px;" onclick="showJoinGroup()">Join Group</button></div><div id="createGroupForm" style="display:none;margin-top:12px;"><input type="text" id="newGroupName" placeholder="Group name" style="width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.05);color:white;margin-bottom:8px;"><button class="btn btn-success btn-small" onclick="createGroup()">Create</button><button class="btn btn-secondary btn-small" onclick="hideGroupForms()">Cancel</button></div><div id="joinGroupForm" style="display:none;margin-top:12px;"><input type="text" id="joinCode" placeholder="Enter invite code" style="width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.05);color:white;margin-bottom:8px;text-transform:uppercase;"><button class="btn btn-success btn-small" onclick="joinGroup()">Join</button><button class="btn btn-secondary btn-small" onclick="hideGroupForms()">Cancel</button></div></div>
+          <div id="groupLeaderboardSection" class="leaderboard-card" style="display:none;"><h2>🏆 <span id="groupLeaderboardName"></span></h2><button class="btn btn-secondary btn-small" style="margin-bottom:12px;" onclick="hideGroupLeaderboard()">← Back</button><div id="groupLeaderboard"></div></div>
+        </div>
       </div>
       
       <button class="btn btn-secondary" onclick="logout()">Logout</button>
