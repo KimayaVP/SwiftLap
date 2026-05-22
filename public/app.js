@@ -266,67 +266,9 @@
       `).join('');
     }
 
-    // Swimmer: Find coach
-    function showFindCoach() {
-      document.getElementById('findCoachSection').style.display = 'block';
-      document.getElementById('noCoachBanner').style.display = 'none';
-      loadOutgoingSwimmerRequests();
-    }
-
-    function hideFindCoach() {
-      document.getElementById('findCoachSection').style.display = 'none';
-      if (!currentUser.coach_id) document.getElementById('noCoachBanner').style.display = 'block';
-    }
-
-    async function searchCoaches() {
-      const query = document.getElementById('coachSearchInput').value;
-      if (query.length < 2) {
-        document.getElementById('coachResults').style.display = 'none';
-        return;
-      }
-      const res = await fetch(`/api/coaches/search?query=${encodeURIComponent(query)}`);
-      const data = await res.json();
-      const container = document.getElementById('coachResults');
-      if (!data.coaches?.length) {
-        container.innerHTML = '<div style="padding:12px;color:#94a3b8;">No coaches found</div>';
-      } else {
-        container.innerHTML = data.coaches.map(c => `
-          <div class="coach-result-item" onclick="sendJoinRequest('${c.id}', '${c.name}')">
-            <div class="name">${c.name}</div>
-            <div class="email">${c.email}</div>
-          </div>
-        `).join('');
-      }
-      container.style.display = 'block';
-    }
-
-    async function sendJoinRequest(coachId, coachName) {
-      const res = await fetch('/api/requests/send', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ fromId: currentUser.id, toId: coachId, type: 'swimmer_to_coach' }) });
-      const data = await res.json();
-      if (data.error) alert(data.error);
-      else {
-        alert(`Request sent to ${coachName}!`);
-        document.getElementById('coachSearchInput').value = '';
-        document.getElementById('coachResults').style.display = 'none';
-        loadOutgoingSwimmerRequests();
-      }
-    }
-
-    async function loadOutgoingSwimmerRequests() {
-      const res = await fetch(`/api/requests/outgoing/${currentUser.id}`);
-      const data = await res.json();
-      const container = document.getElementById('outgoingRequests');
-      if (!data.requests?.length) {
-        container.innerHTML = '';
-        return;
-      }
-      container.innerHTML = '<h4 style="margin:16px 0 8px;color:#94a3b8;">Pending Requests</h4>' + data.requests.map(r => `
-        <div class="request-card">
-          <div class="request-name">${r.to.name}</div>
-          <span class="status-badge status-pending">Pending</span>
-        </div>
-      `).join('');
-    }
+    // Swimmer→coach requests were removed: only a coach can invite a swimmer
+    // (keeps team rosters honest). Swimmers see coach invites under Pending
+    // Requests and accept there.
 
     // ========== EXISTING FUNCTIONS ==========
     async function loadAchievements() {

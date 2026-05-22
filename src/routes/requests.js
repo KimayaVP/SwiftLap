@@ -24,6 +24,13 @@ router.post('/requests/send', async (req, res) => {
   try {
     const { fromId, toId, type } = req.body;
 
+    // Only a coach may initiate a link (via /requests/invite). Swimmers cannot
+    // request a coach — it keeps rosters honest (a swimmer can't attach to any
+    // coach they like). They accept a coach's invite under Pending Requests.
+    if (type === 'swimmer_to_coach') {
+      return res.status(403).json({ error: 'Swimmers can\'t request a coach. Ask your coach to send you an invite.' });
+    }
+
     // Check if request already exists
     const { data: existing } = await supabase
       .from('coach_requests')
