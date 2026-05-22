@@ -1,4 +1,5 @@
     let currentUser = null, accessToken = null, selectedFile = null;
+    let supabaseClient = null, pendingOAuthToken = null;
 
     async function track(eventType, eventData = {}) {
       if (!currentUser) return;
@@ -36,8 +37,72 @@
       const res = await fetch('/api/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: document.getElementById('loginEmail').value, password: document.getElementById('loginPassword').value }) });
       const data = await res.json();
       if (data.error) document.getElementById('error').textContent = data.error;
-      else { currentUser = data.user; accessToken = data.session.access_token; localStorage.setItem('token', accessToken); localStorage.setItem('user', JSON.stringify(currentUser)); showDashboard(); }
+      else completeLogin(data.user, data.session.access_token);
     });
+
+    function completeLogin(user, token) {
+      currentUser = user;
+      accessToken = token;
+      localStorage.setItem('token', token);
+      localStorage.setItem('user', JSON.stringify(user));
+      showDashboard();
+    }
+
+    // ========== GOOGLE / OAUTH SIGN-IN ==========
+    async function initAuth() {
+      try {
+        const cfg = await (await fetch('/api/config')).json();
+        if (cfg.supabaseUrl && cfg.supabaseAnonKey && window.supabase) {
+          supabaseClient = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseAnonKey);
+        }
+      } catch (e) { /* config unavailable — email login still works */ }
+
+      // Returning from an OAuth redirect leaves a session in the URL the client auto-parses.
+      if (supabaseClient) {
+        try {
+          const { data } = await supabaseClient.auth.getSession();
+          if (data?.session?.access_token) { await handleOAuthSession(data.session.access_token); return; }
+        } catch (e) {}
+      }
+
+      const savedUser = localStorage.getItem('user');
+      if (savedUser) { currentUser = JSON.parse(savedUser); accessToken = localStorage.getItem('token'); showDashboard(); }
+    }
+
+    async function signInWithGoogle() {
+      if (!supabaseClient) return alert('Google sign-in is not configured yet. Use email for now.');
+      const { error } = await supabaseClient.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.origin } });
+      if (error) document.getElementById('error').textContent = error.message;
+    }
+
+    async function signInWithApple() {
+      if (!supabaseClient) return alert('Apple sign-in is not configured yet. Use email for now.');
+      const { error } = await supabaseClient.auth.signInWithOAuth({ provider: 'apple', options: { redirectTo: window.location.origin } });
+      if (error) document.getElementById('error').textContent = error.message;
+    }
+
+    async function handleOAuthSession(token) {
+      const res = await fetch('/api/auth/oauth-sync', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ accessToken: token }) });
+      const data = await res.json();
+      if (data.error) { document.getElementById('error').textContent = data.error; return; }
+      if (data.needsRole) {
+        pendingOAuthToken = token;
+        document.getElementById('rolePromptName').textContent = data.name || '';
+        document.getElementById('rolePromptModal').style.display = 'flex';
+        return;
+      }
+      completeLogin(data.user, token);
+    }
+
+    async function finishOAuthSignup(role) {
+      if (!pendingOAuthToken) return;
+      const res = await fetch('/api/auth/oauth-sync', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ accessToken: pendingOAuthToken, role }) });
+      const data = await res.json();
+      if (data.error) { document.getElementById('rolePromptError').textContent = data.error; return; }
+      document.getElementById('rolePromptModal').style.display = 'none';
+      completeLogin(data.user, pendingOAuthToken);
+      pendingOAuthToken = null;
+    }
 
     function showDashboard() {
       document.getElementById('authSection').classList.remove('active');
@@ -50,21 +115,57 @@
         loadCoachDashboard();
         loadCoachLeaderboard();
         loadOutgoingInvites();
+        loadCoachSwimmerSelects();
+        loadBatches();
       } else {
         document.getElementById('swimmerSection').style.display = 'block';
+        document.getElementById('settingsGear').style.display = 'block';
+        showHome();
         if (!currentUser.coach_id) {
           document.getElementById('noCoachBanner').style.display = 'block';
         } else {
           document.getElementById('coachName').textContent = '(with coach)';
         }
         loadGroups(); loadSettings(); loadSwimmerLeaderboard();
+        loadSquads();
         loadAchievements();
         loadTrainingPlan();
+        loadCoachRoutines();
         loadInsights();
         loadGoals();
         loadTimes();
-        loadFeedback(); loadCoachFeedback(); loadCoachBadges(); loadMeets(); loadWatchWorkouts();
+        loadFeedback(); loadCoachFeedback(); loadCoachBadges(); loadMeets(); loadMeetRecs(); loadWatchStatus();
       }
+    }
+
+    // ========== TILE NAVIGATION ==========
+    function showHome() {
+      document.getElementById('homeView').style.display = 'block';
+      document.querySelectorAll('.section-view').forEach(v => v.style.display = 'none');
+      window.scrollTo(0, 0);
+    }
+    function showSection(name) {
+      document.getElementById('homeView').style.display = 'none';
+      document.querySelectorAll('.section-view').forEach(v => v.style.display = 'none');
+      const view = document.getElementById('view-' + name);
+      if (view) view.style.display = 'block';
+      window.scrollTo(0, 0);
+    }
+
+    // ========== SETTINGS MODAL ==========
+    function openSettings() {
+      document.getElementById('settingsModal').style.display = 'flex';
+      loadSettings();
+      loadWatchStatus();
+    }
+    function closeSettings() {
+      document.getElementById('settingsModal').style.display = 'none';
+    }
+    function openIntensityInfo() {
+      document.getElementById('intensityModal').style.display = 'flex';
+    }
+    function closeIntensityInfo() {
+      document.getElementById('intensityModal').style.display = 'none';
     }
 
     // ========== APPROVAL FLOW ==========
@@ -283,13 +384,75 @@
     async function loadGoals() {
       const res = await fetch(`/api/goals/all/${currentUser.id}`);
       const data = await res.json();
-      document.getElementById('goalsList').innerHTML = data.goals.length === 0 ? '<p class="empty-state">Set a goal to start</p>' : data.goals.map(g => `<div onclick="setActiveGoal('${g.id}')" style="background:${g.isActive ? 'rgba(34,197,94,0.15)' : 'rgba(255,255,255,0.03)'};padding:14px;border-radius:10px;margin-bottom:10px;cursor:pointer;border:${g.isActive ? '2px solid #22c55e' : '1px solid transparent'};"><div style="display:flex;justify-content:space-between;margin-bottom:8px;"><h4>${g.stroke} ${g.distance}m</h4>${g.isActive ? '<span style="color:#22c55e;font-size:0.8rem;">✓ Active</span>' : ''}</div><div style="font-size:0.85rem;color:#94a3b8;">Target: ${formatTime(g.target_seconds)}</div></div>`).join('');
+      document.getElementById('goalsList').innerHTML = data.goals.length === 0 ? '<p class="empty-state">Set a goal to start</p>' : data.goals.map(g => {
+        const statusHtml = g.achieved
+          ? '<span class="goal-status achieved">✅ Achieved</span>'
+          : (g.bestTime !== null ? `<span class="goal-status pending">${g.gap}s to go</span>` : '<span class="goal-status pending">No times yet</span>');
+        const bestHtml = g.bestTime !== null ? `<div style="font-size:0.8rem;color:#94a3b8;">Best: ${formatTime(g.bestTime)}</div>` : '';
+        const coachBadge = g.source === 'coach' ? '<span class="coach-badge" title="Assigned by your coach">👨‍🏫 Coach</span>' : '';
+        return `<div onclick="setActiveGoal('${g.id}')" style="background:${g.isActive ? 'rgba(34,197,94,0.15)' : 'rgba(255,255,255,0.03)'};padding:14px;border-radius:10px;margin-bottom:10px;cursor:pointer;border:${g.isActive ? '2px solid #22c55e' : '1px solid transparent'};"><div style="display:flex;justify-content:space-between;margin-bottom:8px;"><h4>${g.stroke} ${g.distance}m${coachBadge}</h4>${g.isActive ? '<span style="color:#22c55e;font-size:0.8rem;">✓ Active</span>' : ''}</div><div style="display:flex;justify-content:space-between;align-items:center;"><div><div style="font-size:0.85rem;color:#94a3b8;">Target: ${formatTime(g.target_seconds)}</div>${bestHtml}</div>${statusHtml}</div></div>`;
+      }).join('');
     }
+
+    // ========== RECENTS ==========
+    let allTimes = [];
+    let recentsFilter = 'today';
+    const SOURCE_ICONS = { manual: '✍️', apple_watch: '⌚', race: '🏁' };
 
     async function loadTimes() {
       const res = await fetch(`/api/times/${currentUser.id}`);
       const data = await res.json();
-      document.getElementById('timesList').innerHTML = data.times.length === 0 ? '<p class="empty-state">No times logged</p>' : data.times.slice(0, 5).map(t => `<div class="time-entry"><div><div class="stroke">${t.stroke}</div><div class="details">${t.distance}m • ${t.date}</div></div><div class="time">${formatTime(t.time_seconds)}</div></div>`).join('');
+      allTimes = data.times || [];
+      renderTimes();
+    }
+
+    function setRecentsFilter(filter, btn) {
+      recentsFilter = filter;
+      document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+      if (btn) btn.classList.add('active');
+      document.getElementById('historyDateWrap').style.display = filter === 'history' ? 'block' : 'none';
+      renderTimes();
+    }
+
+    function clearHistoryDate() {
+      document.getElementById('historyDate').value = '';
+      renderTimes();
+    }
+
+    function renderTimes() {
+      const container = document.getElementById('timesList');
+      if (!container) return;
+      const now = new Date();
+      const todayStr = now.toISOString().split('T')[0];
+      const monthStr = todayStr.slice(0, 7);
+      const weekStart = new Date(now);
+      const day = (weekStart.getDay() + 6) % 7; // Monday = 0
+      weekStart.setDate(weekStart.getDate() - day);
+      const weekStartStr = weekStart.toISOString().split('T')[0];
+
+      const dateOf = t => (t.date || (t.created_at ? t.created_at.split('T')[0] : ''));
+      let list = allTimes.filter(t => {
+        const d = dateOf(t);
+        if (recentsFilter === 'today') return d === todayStr;
+        if (recentsFilter === 'week') return d >= weekStartStr;
+        if (recentsFilter === 'month') return d && d.slice(0, 7) === monthStr;
+        if (recentsFilter === 'history') {
+          const pick = document.getElementById('historyDate').value;
+          return pick ? d === pick : true;
+        }
+        return true;
+      });
+
+      if (!list.length) {
+        const msg = recentsFilter === 'today' ? 'Nothing logged today' : recentsFilter === 'week' ? 'Nothing logged this week' : recentsFilter === 'month' ? 'Nothing logged this month' : 'No times logged';
+        container.innerHTML = `<p class="empty-state">${msg}</p>`;
+        return;
+      }
+      container.innerHTML = list.map(t => {
+        const icon = SOURCE_ICONS[t.source] || '✍️';
+        const label = t.source === 'apple_watch' ? 'Apple Watch' : t.source === 'race' ? 'Race' : 'Manual';
+        return `<div class="time-entry"><div><div class="stroke">${t.stroke}<span class="source-icon" title="${label}">${icon}</span></div><div class="details">${t.distance}m • ${dateOf(t)}</div></div><div class="time">${formatTime(t.time_seconds)}</div></div>`;
+      }).join('');
     }
 
     async function loadFeedback() {
@@ -344,7 +507,7 @@
       else {
         selectedFile = null; document.getElementById('fileSelected').textContent = ''; uploadBtn.disabled = true;
         if (data.newBadges?.length) data.newBadges.forEach(b => showBadgeNotification(b));
-        loadFeedback(); loadCoachFeedback(); loadCoachBadges(); loadMeets(); loadWatchWorkouts(); loadTrainingPlan(); loadAchievements();
+        loadFeedback(); loadCoachFeedback(); loadCoachBadges(); loadMeets(); loadTrainingPlan(); loadAchievements();
       }
     });
 
@@ -634,8 +797,134 @@
       else { if (data.isPB) alert("🎉 New Personal Best!"); document.getElementById("raceMinutes").value = ""; document.getElementById("raceSeconds").value = ""; document.getElementById("racePlace").value = ""; loadMeetResults(currentMeetId); loadMeets(); loadTimes(); loadGoals(); }
     }
 
+    // ========== COACH MEET RECOMMENDATIONS (swimmer view) ==========
+    async function loadMeetRecs() {
+      const container = document.getElementById("meetRecsList");
+      if (!container) return;
+      const res = await fetch(`/api/meets/recommendations/${currentUser.id}`);
+      const data = await res.json().catch(() => ({}));
+      const recs = (data.recommendations || []).filter(r => r.status !== 'declined');
+      if (!recs.length) { container.innerHTML = "<p class=\"empty-state\">No recommendations from your coach yet</p>"; return; }
+      container.innerHTML = recs.map(r => {
+        const eventLine = (r.stroke || r.distance) ? `<div class="rec-meta">🏊 ${r.stroke || ''} ${r.distance ? r.distance + 'm' : ''}</div>` : '';
+        const dateLine = r.meet_date ? `<div class="rec-meta">📅 ${r.meet_date}${r.location ? ' • ' + r.location : ''}</div>` : (r.location ? `<div class="rec-meta">📍 ${r.location}</div>` : '');
+        const noteLine = r.note ? `<div class="rec-meta">💬 ${r.note}</div>` : '';
+        const actions = r.status === 'accepted'
+          ? '<span class="status-badge status-ahead">✓ Accepted</span>'
+          : `<div class="rec-actions"><button class="btn btn-success btn-small" onclick="respondMeetRec('${r.id}','accepted')">Accept</button><button class="btn btn-secondary btn-small" onclick="respondMeetRec('${r.id}','declined')">Dismiss</button></div>`;
+        return `<div class="rec-card"><div class="rec-name">🏁 ${r.meet_name}</div><div class="rec-meta">From ${r.coachName || 'Coach'}</div>${eventLine}${dateLine}${noteLine}${actions}</div>`;
+      }).join("");
+    }
+
+    async function respondMeetRec(recommendationId, status) {
+      const res = await fetch("/api/meets/recommendation/respond", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ recommendationId, status, swimmerId: currentUser.id }) });
+      const data = await res.json().catch(() => ({}));
+      if (data.error) { alert(data.error); return; }
+      loadMeetRecs();
+      if (status === 'accepted') {
+        loadMeets();
+        if (data.meet) viewMeetDetail(data.meet.id, data.meet.name);
+      }
+    }
+
+    // ========== COACH: RECOMMEND A MEET ==========
+    async function loadCoachSwimmerSelects() {
+      const res = await fetch(`/api/coach/swimmers/${currentUser.id}`);
+      const data = await res.json().catch(() => ({}));
+      const options = "<option value=\"\">Select swimmer...</option>" + (data.swimmers || []).map(s => `<option value="${s.id}">${s.name}</option>`).join("");
+      ["recSwimmerSelect", "assignSwimmerSelect"].forEach(id => {
+        const sel = document.getElementById(id);
+        if (sel) sel.innerHTML = options;
+      });
+    }
+
+    // ========== COACH: ASSIGN GOAL / ROUTINE ==========
+    async function assignGoal() {
+      const swimmerId = document.getElementById("assignSwimmerSelect").value;
+      const min = document.getElementById("assignGoalMin").value;
+      const sec = document.getElementById("assignGoalSec").value;
+      const status = document.getElementById("assignStatus");
+      if (!swimmerId) return alert("Select a swimmer");
+      if (min === "" && sec === "") return alert("Enter a target time");
+      const res = await fetch("/api/goals/assign", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({
+        coachId: currentUser.id, swimmerId,
+        stroke: document.getElementById("assignGoalStroke").value,
+        distance: document.getElementById("assignGoalDistance").value,
+        targetMinutes: min || 0, targetSeconds: sec || 0
+      }) });
+      const data = await res.json().catch(() => ({}));
+      if (data.error) { status.innerHTML = `<span class="error">${data.error}</span>`; return; }
+      status.innerHTML = `<span class="success">Goal assigned!</span>`;
+      document.getElementById("assignGoalMin").value = "";
+      document.getElementById("assignGoalSec").value = "";
+    }
+
+    async function assignRoutine() {
+      const swimmerId = document.getElementById("assignSwimmerSelect").value;
+      const title = document.getElementById("assignRoutineTitle").value.trim();
+      const details = document.getElementById("assignRoutineDetails").value.trim();
+      const status = document.getElementById("assignStatus");
+      if (!swimmerId) return alert("Select a swimmer");
+      if (!title) return alert("Enter a routine title");
+      const res = await fetch("/api/training-routines/assign", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ coachId: currentUser.id, swimmerId, title, details }) });
+      const data = await res.json().catch(() => ({}));
+      if (data.error) { status.innerHTML = `<span class="error">${data.error}</span>`; return; }
+      status.innerHTML = `<span class="success">Routine assigned!</span>`;
+      document.getElementById("assignRoutineTitle").value = "";
+      document.getElementById("assignRoutineDetails").value = "";
+    }
+
+    // ========== SWIMMER: SQUAD + COACH ROUTINES ==========
+    async function loadSquads() {
+      const banner = document.getElementById("squadBanner");
+      if (!banner) return;
+      const res = await fetch(`/api/batches/swimmer/${currentUser.id}`);
+      const data = await res.json().catch(() => ({}));
+      const names = (data.batches || []).map(b => b.name);
+      if (!names.length) { banner.style.display = "none"; return; }
+      banner.style.display = "block";
+      banner.innerHTML = `<div class="squad-label">${names.length > 1 ? 'Your squads' : 'Your squad'}</div><div class="squad-names">📦 ${names.join(' · ')}</div>`;
+    }
+
+    async function loadCoachRoutines() {
+      const container = document.getElementById("coachRoutinesContainer");
+      if (!container) return;
+      const res = await fetch(`/api/training-routines/${currentUser.id}`);
+      const data = await res.json().catch(() => ({}));
+      const routines = data.routines || [];
+      if (!routines.length) { container.innerHTML = ""; return; }
+      container.innerHTML = routines.map(r => `<div class="routine-card"><div class="routine-title">📋 ${r.title}<span class="coach-badge" title="Assigned by your coach">👨‍🏫 Coach</span></div><div class="routine-meta">From ${r.coachName || 'Coach'} • ${new Date(r.created_at).toLocaleDateString()}</div>${r.details ? `<div class="routine-details">${r.details}</div>` : ''}</div>`).join("");
+    }
+
+    async function sendMeetRecommendation() {
+      const swimmerId = document.getElementById("recSwimmerSelect").value;
+      const meetName = document.getElementById("recMeetName").value.trim();
+      if (!swimmerId) return alert("Select a swimmer");
+      if (!meetName) return alert("Enter a meet name");
+      const payload = {
+        coachId: currentUser.id,
+        swimmerId,
+        meetName,
+        meetDate: document.getElementById("recMeetDate").value || null,
+        location: document.getElementById("recMeetLocation").value || null,
+        stroke: document.getElementById("recStroke").value || null,
+        distance: document.getElementById("recDistance").value || null,
+        note: document.getElementById("recNote").value || null
+      };
+      const res = await fetch("/api/meets/recommend", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+      const data = await res.json().catch(() => ({}));
+      const status = document.getElementById("recStatus");
+      if (data.error) { status.innerHTML = `<span class="error">${data.error}</span>`; return; }
+      status.innerHTML = `<span class="success">Recommendation sent!</span>`;
+      document.getElementById("recMeetName").value = "";
+      document.getElementById("recMeetDate").value = "";
+      document.getElementById("recMeetLocation").value = "";
+      document.getElementById("recNote").value = "";
+    }
+
     function logout() {
       track('logout', {});
+      if (supabaseClient) supabaseClient.auth.signOut().catch(() => {});
       localStorage.removeItem('token'); localStorage.removeItem('user'); currentUser = null;
       document.getElementById('dashboard').classList.remove('active');
       document.getElementById('authSection').classList.add('active');
@@ -669,47 +958,38 @@
       }
     }
 
-    async function loadWatchWorkouts() {
+    async function loadWatchStatus() {
       if (!currentUser) return;
-      const res = await fetch(`/api/watch/workouts/${currentUser.id}`);
-      const data = await res.json();
-      const container = document.getElementById("watchWorkouts");
       const status = document.getElementById("watchStatus");
       const btn = document.getElementById("generateCodeBtn");
-      if (!data.workouts || data.workouts.length === 0) {
-        if (status) status.innerHTML = "⌚ No watch linked yet";
-        container.innerHTML = "<p style='color:#888'>No watch workouts yet</p>";
-        return;
+      const unlinkBtn = document.getElementById("unlinkWatchBtn");
+      try {
+        const res = await fetch(`/api/watch/status/${currentUser.id}`);
+        const data = await res.json();
+        if (data.linked) {
+          if (status) status.innerHTML = `✅ Watch linked · ${data.workoutCount} workout${data.workoutCount === 1 ? '' : 's'} synced. Watch swims appear in Recents with a ⌚ icon.`;
+          if (btn) btn.textContent = "Generate New Code";
+          if (unlinkBtn) unlinkBtn.style.display = "block";
+        } else {
+          if (status) status.innerHTML = "⌚ No watch linked yet. Generate a code and enter it on your Apple Watch.";
+          if (btn) btn.textContent = "Generate Watch Code";
+          if (unlinkBtn) unlinkBtn.style.display = "none";
+        }
+      } catch (e) {
+        if (status) status.innerHTML = "⌚ Status unavailable";
       }
-      if (status) status.innerHTML = `✅ Watch linked &middot; ${data.workouts.length} workout${data.workouts.length === 1 ? '' : 's'} synced`;
-      if (btn) btn.textContent = "Generate New Code";
-      container.innerHTML = data.workouts.map(w => `
-        <div style="background:#1a1a2e;padding:10px;border-radius:8px;margin-bottom:8px;position:relative;">
-          <button onclick="deleteWatchWorkout('${w.id}')" title="Delete workout"
-            style="position:absolute;top:6px;right:6px;background:transparent;border:none;color:#888;font-size:16px;cursor:pointer;padding:2px 6px;">✕</button>
-          <div style="display:flex;justify-content:space-between;padding-right:24px;">
-            <span>🏊 ${w.laps} laps (${w.distance}m)</span>
-            <span style="color:#888">${new Date(w.created_at).toLocaleDateString()}</span>
-          </div>
-          <div style="font-size:12px;color:#888;margin-top:5px;">
-            ⏱️ ${Math.floor(w.duration/60)}:${(w.duration%60).toString().padStart(2,'0')} |
-            ❤️ ${Math.round(w.avg_heart_rate || 0)} bpm |
-            💪 ${w.fatigue_level || 'N/A'}
-          </div>
-        </div>
-      `).join("");
     }
 
-    async function deleteWatchWorkout(id) {
-      if (!confirm("Delete this workout?")) return;
-      const res = await fetch(`/api/watch/workout/${id}`, { method: "DELETE" });
-      if (res.ok) {
-        loadWatchWorkouts();
+    async function unlinkWatch() {
+      if (!confirm("Unlink your Apple Watch? You can re-link it later with a new code.")) return;
+      const res = await fetch("/api/watch/unlink", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ swimmerId: currentUser.id }) });
+      const data = await res.json().catch(() => ({}));
+      if (data.success) {
+        document.getElementById("watchCode").style.display = "none";
+        loadWatchStatus();
       } else {
-        const data = await res.json().catch(() => ({}));
-        alert("Failed to delete: " + (data.error || res.status));
+        alert("Failed to unlink: " + (data.error || res.status));
       }
     }
 
-    const savedUser = localStorage.getItem('user');
-    if (savedUser) { currentUser = JSON.parse(savedUser); accessToken = localStorage.getItem('token'); showDashboard(); }
+    initAuth();

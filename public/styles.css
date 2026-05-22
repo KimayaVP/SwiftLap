@@ -151,3 +151,59 @@
     .no-coach-banner { background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 10px; padding: 16px; margin-bottom: 16px; text-align: center; }
     .no-coach-banner h4 { color: #fbbf24; margin-bottom: 8px; }
     .no-coach-banner p { font-size: 0.85rem; color: #94a3b8; margin-bottom: 12px; }
+    .demo-banner { background: #e0f2fe; color: #0369a1; padding: 12px; border-radius: 10px; text-align: center; margin-bottom: 16px; font-size: 0.9rem; }
+    /* OAuth sign-in */
+    .oauth-divider { display: flex; align-items: center; text-align: center; color: #64748b; font-size: 0.75rem; margin: 16px 0; }
+    .oauth-divider::before, .oauth-divider::after { content: ''; flex: 1; height: 1px; background: rgba(255,255,255,0.12); }
+    .oauth-divider span { padding: 0 12px; }
+    .btn-oauth { background: white; color: #1f2937; display: flex; align-items: center; justify-content: center; gap: 10px; }
+    .btn-oauth:hover { background: #f1f5f9; }
+    /* Settings gear + modal */
+    .header { position: relative; }
+    .settings-gear { position: absolute; top: 0; right: 0; width: auto; background: rgba(255,255,255,0.08); border: none; border-radius: 10px; padding: 8px 12px; font-size: 1.3rem; cursor: pointer; line-height: 1; }
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 1100; display: flex; align-items: flex-start; justify-content: center; padding: 40px 16px; overflow-y: auto; }
+    .modal-card { background: #16213e; border: 1px solid rgba(255,255,255,0.1); border-radius: 16px; padding: 20px; width: 100%; max-width: 420px; }
+    .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+    .modal-header h2 { font-size: 1.1rem; }
+    .modal-close { width: auto; background: rgba(255,255,255,0.08); border: none; color: white; border-radius: 8px; padding: 6px 12px; font-size: 1rem; cursor: pointer; }
+    .settings-row { display: flex; justify-content: space-between; align-items: center; padding: 12px; background: rgba(255,255,255,0.03); border-radius: 10px; margin-bottom: 16px; gap: 12px; }
+    .settings-section { background: rgba(255,255,255,0.03); border-radius: 10px; padding: 14px; }
+    .settings-section h3 { font-size: 0.95rem; margin-bottom: 10px; }
+    /* Tile grid */
+    .tile-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 16px; }
+    .tile { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); border-radius: 16px; padding: 22px 12px; text-align: center; cursor: pointer; transition: transform .15s, background .15s; }
+    .tile:hover { background: rgba(255,255,255,0.1); transform: translateY(-2px); }
+    .tile:active { transform: scale(0.97); }
+    .tile-icon { font-size: 2rem; margin-bottom: 8px; }
+    .tile-label { font-size: 0.9rem; font-weight: 600; }
+    .back-btn { margin-bottom: 16px; }
+    /* Recents filters */
+    .filter-bar { display: flex; gap: 6px; margin-bottom: 12px; flex-wrap: wrap; }
+    .filter-btn { flex: 1; min-width: 70px; width: auto; padding: 8px 6px; border-radius: 8px; border: none; background: rgba(255,255,255,0.08); color: #94a3b8; font-size: 0.75rem; font-weight: 600; cursor: pointer; }
+    .filter-btn.active { background: #0ea5e9; color: white; }
+    .source-icon { margin-left: 6px; opacity: 0.85; }
+    /* Goal achievement */
+    .goal-status { font-size: 0.8rem; font-weight: 600; }
+    .goal-status.achieved { color: #22c55e; }
+    .goal-status.pending { color: #fbbf24; }
+    /* Intensity info */
+    .info-icon { width: 20px; height: 20px; border-radius: 50%; border: none; background: rgba(255,255,255,0.15); color: white; font-size: 0.7rem; font-weight: 700; font-style: italic; font-family: Georgia, serif; cursor: pointer; line-height: 20px; padding: 0; vertical-align: middle; margin-left: 6px; }
+    .info-icon:hover { background: rgba(255,255,255,0.3); }
+    .legend-row { display: flex; align-items: flex-start; gap: 10px; font-size: 0.82rem; color: #cbd5e1; margin-bottom: 10px; }
+    .legend-row .intensity-badge { flex-shrink: 0; }
+    /* Swimmer squad banner */
+    .squad-banner { background: rgba(139,92,246,0.12); border: 1px solid rgba(139,92,246,0.3); border-radius: 12px; padding: 12px 14px; margin-bottom: 16px; font-size: 0.85rem; }
+    .squad-banner .squad-label { color: #a78bfa; font-weight: 600; font-size: 0.75rem; text-transform: uppercase; }
+    .squad-banner .squad-names { margin-top: 2px; font-weight: 600; }
+    /* Coach-assigned badge */
+    .coach-badge { display: inline-block; font-size: 0.7rem; background: rgba(139,92,246,0.2); color: #a78bfa; border-radius: 10px; padding: 2px 8px; margin-left: 6px; vertical-align: middle; }
+    /* Coach routine card */
+    .routine-card { background: rgba(139,92,246,0.1); border: 1px solid rgba(139,92,246,0.3); border-radius: 12px; padding: 14px; margin-bottom: 12px; }
+    .routine-card .routine-title { font-weight: 600; color: #c4b5fd; }
+    .routine-card .routine-meta { font-size: 0.75rem; color: #94a3b8; margin: 4px 0; }
+    .routine-card .routine-details { font-size: 0.85rem; white-space: pre-wrap; margin-top: 6px; }
+    /* Coach recommendation card */
+    .rec-card { background: rgba(14,165,233,0.1); border: 1px solid rgba(14,165,233,0.3); border-radius: 12px; padding: 14px; margin-bottom: 10px; }
+    .rec-card .rec-name { font-weight: 600; }
+    .rec-card .rec-meta { font-size: 0.78rem; color: #94a3b8; margin: 4px 0; }
+    .rec-card .rec-actions { display: flex; gap: 8px; margin-top: 10px; }

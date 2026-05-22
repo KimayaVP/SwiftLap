@@ -1,10 +1,16 @@
 const express = require('express');
 const { supabase } = require('../db');
 const { logError, trackEvent } = require('../lib/tracking');
+const { seedDemoData } = require('../lib/seed');
 
 const router = express.Router();
 
 router.get('/health', (req, res) => res.json({ status: 'ok', timestamp: new Date().toISOString() }));
+
+// Public client config — anon key is safe to expose (used for the browser OAuth handshake).
+router.get('/config', (req, res) => {
+  res.json({ supabaseUrl: process.env.SUPABASE_URL, supabaseAnonKey: process.env.SUPABASE_ANON_KEY });
+});
 
 router.post('/auth/signup', async (req, res) => {
   try {
@@ -14,8 +20,47 @@ router.post('/auth/signup', async (req, res) => {
     const { data: profile, error } = await supabase.from('profiles').insert({ id: authData.user.id, email, name, role: role || 'swimmer' }).select().single();
     if (error) return res.status(400).json({ error: error.message });
     await trackEvent(profile.id, 'signup', { role: profile.role });
+
+    if (profile.role === 'swimmer') await seedDemoData(profile.id);
+
     res.json({ success: true, user: profile });
   } catch (e) { await logError(e, { route: 'signup' }); res.status(500).json({ error: e.message }); }
+});
+
+// Sync an OAuth (Google/Apple) user into a profile.
+// First call (no role) returns needsRole if the profile doesn't exist yet;
+// the client then re-calls with the chosen role to create it.
+router.post('/auth/oauth-sync', async (req, res) => {
+  try {
+    const { accessToken, role } = req.body;
+    if (!accessToken) return res.status(400).json({ error: 'Missing access token' });
+
+    const { data: userData, error: userError } = await supabase.auth.getUser(accessToken);
+    if (userError || !userData?.user) return res.status(401).json({ error: 'Invalid session' });
+
+    const authUser = userData.user;
+    const { data: existing } = await supabase.from('profiles').select('*').eq('id', authUser.id).single();
+    if (existing) {
+      await trackEvent(existing.id, 'login', { role: existing.role, provider: authUser.app_metadata?.provider });
+      return res.json({ success: true, user: existing });
+    }
+
+    if (!role) {
+      const name = authUser.user_metadata?.full_name || authUser.user_metadata?.name || (authUser.email || '').split('@')[0];
+      return res.json({ needsRole: true, name, email: authUser.email });
+    }
+
+    const name = authUser.user_metadata?.full_name || authUser.user_metadata?.name || (authUser.email || '').split('@')[0];
+    const { data: profile, error } = await supabase.from('profiles')
+      .insert({ id: authUser.id, email: authUser.email, name, role: role === 'coach' ? 'coach' : 'swimmer' })
+      .select().single();
+    if (error) return res.status(400).json({ error: error.message });
+
+    await trackEvent(profile.id, 'signup', { role: profile.role, provider: authUser.app_metadata?.provider });
+    if (profile.role === 'swimmer') await seedDemoData(profile.id);
+
+    res.json({ success: true, user: profile });
+  } catch (e) { await logError(e, { route: 'oauth-sync' }); res.status(500).json({ error: e.message }); }
 });
 
 router.post('/auth/login', async (req, res) => {

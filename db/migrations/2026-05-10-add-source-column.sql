@@ -1,0 +1,2 @@
+ALTER TABLE goals ADD COLUMN source TEXT;
+ALTER TABLE swim_times ADD COLUMN source TEXT;

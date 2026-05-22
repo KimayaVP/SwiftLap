@@ -47,11 +47,19 @@ SwiftLap/
 │       ├── video.js
 │       └── watch.js
 ├── public/                   # Static frontend (index.html, app.js, styles.css)
+│                             #   Swimmer dashboard is a tile grid (#homeView) that
+│                             #   navigates to #view-* sections via showSection()/showHome().
+├── db/
+│   └── migrations/           # Hand-run SQL migrations (apply manually in Supabase SQL editor)
 ├── docs/
 │   └── create-manual.js
 ├── package.json
 └── .env                      # Supabase credentials, PORT (gitignored)
 ```
+
+## Database migrations
+
+SQL in `db/migrations/` is **not auto-applied** — paste each file into the Supabase SQL editor to run it. Files are named `YYYY-MM-DD-description.sql`.
 
 ## Routing Convention
 
