@@ -75,6 +75,12 @@
       if (error) document.getElementById('error').textContent = error.message;
     }
 
+    async function signInWithApple() {
+      if (!supabaseClient) return alert('Apple sign-in is not configured yet. Use email for now.');
+      const { error } = await supabaseClient.auth.signInWithOAuth({ provider: 'apple', options: { redirectTo: window.location.origin } });
+      if (error) document.getElementById('error').textContent = error.message;
+    }
+
     async function handleOAuthSession(token) {
       const res = await fetch('/api/auth/oauth-sync', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ accessToken: token }) });
       const data = await res.json();
