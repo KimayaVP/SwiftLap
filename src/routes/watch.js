@@ -13,6 +13,19 @@ router.post('/watch/workout', async (req, res) => {
       fatigueLevel, poolLength, date, source
     } = req.body;
 
+    if (!swimmerId) return res.status(400).json({ error: 'Missing swimmerId' });
+
+    // Reject syncs from a watch that has been unlinked from this account.
+    // Re-linking (via a fresh 6-digit code) sets watch_linked_at again.
+    const { data: linkProfile } = await supabase
+      .from('profiles')
+      .select('watch_linked_at')
+      .eq('id', swimmerId)
+      .single();
+    if (!linkProfile?.watch_linked_at) {
+      return res.status(403).json({ error: 'Watch not linked. Open SwiftLap and enter a new 6-digit code to re-link.' });
+    }
+
     // Auto-clear demo rows on first real workout
     await Promise.all([
       supabase.from('watch_workouts').delete().eq('swimmer_id', swimmerId).eq('source', 'demo'),
