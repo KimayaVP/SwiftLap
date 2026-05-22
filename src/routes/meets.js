@@ -78,30 +78,28 @@ router.post('/meets/add-result', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// Coach recommends a meet/race to one of their swimmers
+// Coach recommends a meet/race to one or more of their swimmers
 router.post('/meets/recommend', async (req, res) => {
   try {
-    const { coachId, swimmerId, meetName, meetDate, location, stroke, distance, note } = req.body;
-    if (!coachId || !swimmerId || !meetName) {
-      return res.status(400).json({ error: 'coachId, swimmerId and meetName are required' });
+    const { coachId, swimmerId, swimmerIds, meetName, meetDate, note } = req.body;
+    const ids = Array.isArray(swimmerIds) ? swimmerIds.filter(Boolean) : (swimmerId ? [swimmerId] : []);
+    if (!coachId || !ids.length || !meetName) {
+      return res.status(400).json({ error: 'coachId, at least one swimmer and meetName are required' });
     }
+    const rows = ids.map(id => ({
+      coach_id: coachId,
+      swimmer_id: id,
+      meet_name: meetName,
+      meet_date: meetDate || null,
+      note: note || null
+    }));
     const { data, error } = await supabase
       .from('meet_recommendations')
-      .insert({
-        coach_id: coachId,
-        swimmer_id: swimmerId,
-        meet_name: meetName,
-        meet_date: meetDate || null,
-        location: location || null,
-        stroke: stroke || null,
-        distance: distance ? parseInt(distance) : null,
-        note: note || null
-      })
-      .select()
-      .single();
+      .insert(rows)
+      .select();
     if (error) return res.status(400).json({ error: error.message });
-    await trackEvent(coachId, 'meet_recommended', { swimmerId, meetName });
-    res.json({ success: true, recommendation: data });
+    await trackEvent(coachId, 'meet_recommended', { swimmerCount: ids.length, meetName });
+    res.json({ success: true, recommendations: data });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
