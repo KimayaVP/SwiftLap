@@ -242,7 +242,8 @@
       const status = document.getElementById('inviteStatus');
       if (data.error) status.innerHTML = `<span class="error">${data.error}</span>`;
       else {
-        status.innerHTML = `<span class="success">Invite sent to ${data.swimmer.name}!</span>`;
+        const msg = data.emailed ? data.message : `Invite sent to ${data.swimmer.name}!`;
+        status.innerHTML = `<span class="success">${msg}</span>`;
         document.getElementById('inviteEmail').value = '';
         loadOutgoingInvites();
       }
@@ -342,17 +343,14 @@
     // ========== COACH DASHBOARD DATA ==========
     let coachSwimmers = [];   // [{id,name,status,goalsAhead,goalsCount,sessionsThisMonth,streak,...}]
     let coachBatches = [];    // [{id,name,memberIds:[...]}]
+    let overviewSelected = new Set();  // batch ids + 'individuals'; empty = all
 
     function jsStr(s) { return String(s).replace(/\\/g, '\\\\').replace(/'/g, "\\'"); }
 
     async function loadCoachData() {
+      overviewSelected.clear();
       const dash = await (await fetch(`/api/coach/dashboard/${currentUser.id}`)).json().catch(() => ({}));
       coachSwimmers = dash.swimmers || [];
-      const sum = dash.summary || { total: 0, ahead: 0, behind: 0, noGoals: 0 };
-      document.getElementById('totalSwimmers').textContent = sum.total;
-      document.getElementById('aheadCount').textContent = sum.ahead;
-      document.getElementById('behindCount').textContent = sum.behind;
-      document.getElementById('noGoalsCount').textContent = sum.noGoals;
 
       const bres = await (await fetch(`/api/batches/${currentUser.id}`)).json().catch(() => ({}));
       const batches = bres.batches || [];
@@ -364,7 +362,53 @@
       populateBatchDropdowns();
       renderGroupedSwimmers();
       populateRecChecklist();
+      renderOverviewFilter();
+      applyOverviewFilter();
       loadCoachLeaderboard();
+    }
+
+    // ========== TEAM OVERVIEW: multi-select batch filter ==========
+    function renderOverviewFilter() {
+      const c = document.getElementById('overviewFilter');
+      if (!c) return;
+      const chips = [`<button class="fchip ${!overviewSelected.size ? 'active' : ''}" onclick="toggleOverviewChip('all')">All</button>`];
+      coachBatches.forEach(b => chips.push(`<button class="fchip ${overviewSelected.has(b.id) ? 'active' : ''}" onclick="toggleOverviewChip('${b.id}')">${b.name}</button>`));
+      chips.push(`<button class="fchip ${overviewSelected.has('individuals') ? 'active' : ''}" onclick="toggleOverviewChip('individuals')">Individuals</button>`);
+      c.innerHTML = chips.join('');
+    }
+
+    function toggleOverviewChip(id) {
+      if (id === 'all') overviewSelected.clear();
+      else if (overviewSelected.has(id)) overviewSelected.delete(id);
+      else overviewSelected.add(id);
+      renderOverviewFilter();
+      applyOverviewFilter();
+    }
+
+    function applyOverviewFilter() {
+      let set = coachSwimmers;
+      if (overviewSelected.size) {
+        const inBatch = new Set();
+        coachBatches.forEach(b => b.memberIds.forEach(id => inBatch.add(id)));
+        set = coachSwimmers.filter(s => {
+          const inSelectedBatch = coachBatches.some(b => overviewSelected.has(b.id) && b.memberIds.includes(s.id));
+          const isIndividual = overviewSelected.has('individuals') && !inBatch.has(s.id);
+          return inSelectedBatch || isIndividual;
+        });
+      }
+      document.getElementById('totalSwimmers').textContent = set.length;
+      document.getElementById('aheadCount').textContent = set.filter(s => s.status === 'ahead').length;
+      document.getElementById('behindCount').textContent = set.filter(s => s.status === 'behind').length;
+      document.getElementById('noGoalsCount').textContent = set.filter(s => s.status === 'no_goals').length;
+    }
+
+    // ========== ASSIGN: goal / routine tabs ==========
+    function showAssignTab(which) {
+      const goal = which === 'goal';
+      document.getElementById('assignGoalPanel').style.display = goal ? 'block' : 'none';
+      document.getElementById('assignRoutinePanel').style.display = goal ? 'none' : 'block';
+      document.getElementById('assignTabGoal').classList.toggle('active', goal);
+      document.getElementById('assignTabRoutine').classList.toggle('active', !goal);
     }
 
     function populateBatchDropdowns() {
