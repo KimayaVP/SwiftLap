@@ -23,7 +23,7 @@ router.post('/auth/signup', async (req, res) => {
 
     if (profile.role === 'swimmer') await seedDemoData(profile.id);
 
-    res.json({ success: true, user: profile });
+    res.json({ success: true, user: profile, session: authData.session });
   } catch (e) { await logError(e, { route: 'signup' }); res.status(500).json({ error: e.message }); }
 });
 
@@ -43,6 +43,17 @@ router.post('/auth/oauth-sync', async (req, res) => {
     if (existing) {
       await trackEvent(existing.id, 'login', { role: existing.role, provider: authUser.app_metadata?.provider });
       return res.json({ success: true, user: existing });
+    }
+
+    // Link by email: if a profile already exists for this email (e.g. they signed up
+    // with email/password earlier), sign them into that same account instead of
+    // creating a duplicate. The app keys data off profile.id, so this keeps history intact.
+    if (authUser.email) {
+      const { data: byEmail } = await supabase.from('profiles').select('*').eq('email', authUser.email).single();
+      if (byEmail) {
+        await trackEvent(byEmail.id, 'login', { role: byEmail.role, provider: authUser.app_metadata?.provider, linkedByEmail: true });
+        return res.json({ success: true, user: byEmail });
+      }
     }
 
     if (!role) {

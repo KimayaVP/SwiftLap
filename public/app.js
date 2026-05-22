@@ -28,8 +28,11 @@
       e.preventDefault();
       const res = await fetch('/api/auth/signup', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: document.getElementById('signupName').value, email: document.getElementById('signupEmail').value, password: document.getElementById('signupPassword').value, role: document.getElementById('signupRole').value }) });
       const data = await res.json();
-      if (data.error) document.getElementById('error').textContent = data.error;
-      else { document.getElementById('success').textContent = 'Created!'; showTab('login'); }
+      if (data.error) { document.getElementById('error').textContent = data.error; return; }
+      // Take a brand-new user straight into the app instead of back to login.
+      if (data.session?.access_token) { completeLogin(data.user, data.session.access_token); return; }
+      document.getElementById('success').textContent = 'Account created — please log in.';
+      showTab('login');
     });
 
     document.getElementById('loginForm').addEventListener('submit', async (e) => {
@@ -107,24 +110,20 @@
     function showDashboard() {
       document.getElementById('authSection').classList.remove('active');
       document.getElementById('dashboard').classList.add('active');
-      document.getElementById('userName').textContent = currentUser.name;
-      document.getElementById('userRole').textContent = currentUser.role;
+      showWelcome(currentUser.name, currentUser.role);
       loadPendingRequests();
       if (currentUser.role === 'coach') {
         document.getElementById('coachSection').style.display = 'block';
-        loadCoachDashboard();
-        loadCoachLeaderboard();
-        loadOutgoingInvites();
+        document.getElementById('inviteIcon').style.display = 'block';
+        showHome();
+        loadCoachData();
         loadCoachSwimmerSelects();
-        loadBatches();
       } else {
         document.getElementById('swimmerSection').style.display = 'block';
         document.getElementById('settingsGear').style.display = 'block';
         showHome();
         if (!currentUser.coach_id) {
           document.getElementById('noCoachBanner').style.display = 'block';
-        } else {
-          document.getElementById('coachName').textContent = '(with coach)';
         }
         loadGroups(); loadSettings(); loadSwimmerLeaderboard();
         loadSquads();
@@ -138,14 +137,37 @@
       }
     }
 
+    // ========== WELCOME TOAST + ROLE CHIP ==========
+    function showWelcome(name, role) {
+      const chip = document.getElementById('roleChip');
+      chip.textContent = role === 'coach' ? '👨‍🏫 Coach' : '🏊 Swimmer';
+      chip.style.display = 'inline-block';
+      const toast = document.getElementById('welcomeToast');
+      document.getElementById('welcomeToastText').textContent = `👋 Welcome, ${name}!`;
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 3000);
+    }
+
+    // ========== COACH: INVITE MODAL ==========
+    function openInvite() {
+      document.getElementById('inviteModal').style.display = 'flex';
+      loadOutgoingInvites();
+    }
+    function closeInvite() {
+      document.getElementById('inviteModal').style.display = 'none';
+    }
+
     // ========== TILE NAVIGATION ==========
     function showHome() {
-      document.getElementById('homeView').style.display = 'block';
+      document.querySelectorAll('.home-view').forEach(v => v.style.display = 'none');
       document.querySelectorAll('.section-view').forEach(v => v.style.display = 'none');
+      const homeId = currentUser && currentUser.role === 'coach' ? 'coachHomeView' : 'homeView';
+      const home = document.getElementById(homeId);
+      if (home) home.style.display = 'block';
       window.scrollTo(0, 0);
     }
     function showSection(name) {
-      document.getElementById('homeView').style.display = 'none';
+      document.querySelectorAll('.home-view').forEach(v => v.style.display = 'none');
       document.querySelectorAll('.section-view').forEach(v => v.style.display = 'none');
       const view = document.getElementById('view-' + name);
       if (view) view.style.display = 'block';
@@ -317,25 +339,77 @@
       document.getElementById('badgesGrid').innerHTML = data.all.map(b => `<div class="badge-item ${b.earned ? 'earned' : 'locked'}"><div class="badge-icon">${b.icon}</div><div class="badge-name">${b.name}</div></div>`).join('');
     }
 
-    async function loadCoachDashboard() {
-      const res = await fetch(`/api/coach/dashboard/${currentUser.id}`);
-      const data = await res.json();
-      document.getElementById('totalSwimmers').textContent = data.summary.total;
-      document.getElementById('aheadCount').textContent = data.summary.ahead;
-      document.getElementById('behindCount').textContent = data.summary.behind;
-      document.getElementById('noGoalsCount').textContent = data.summary.noGoals;
-      const list = document.getElementById('coachSwimmersList');
-      if (!data.swimmers.length) { list.innerHTML = '<p class="empty-state">No swimmers yet</p>'; return; }
-      list.innerHTML = data.swimmers.map(s => `<div class="swimmer-detail-card ${s.status}"><div class="swimmer-detail-header"><h4>${s.name}</h4><span class="status-badge status-${s.status}">${s.status === 'ahead' ? '✓' : s.status === 'behind' ? '↓' : '-'}</span></div><div class="swimmer-detail-stats"><span>Goals <strong>${s.goalsAhead}/${s.goalsCount}</strong></span><span>Sessions <strong>${s.sessionsThisMonth}</strong></span><span>🔥 <strong>${s.streak}</strong></span></div><button class="btn btn-small btn-primary" style="margin-top:8px;" onclick="showCommentSection('${s.id}', '${s.name}')">💬 Comment</button><button class="btn btn-small btn-success" style="margin-top:8px;margin-left:4px;" onclick="showAwardBadge('${s.id}', '${s.name}')">🏅 Award</button></div>`).join('');
+    // ========== COACH DASHBOARD DATA ==========
+    let coachSwimmers = [];   // [{id,name,status,goalsAhead,goalsCount,sessionsThisMonth,streak,...}]
+    let coachBatches = [];    // [{id,name,memberIds:[...]}]
+
+    function jsStr(s) { return String(s).replace(/\\/g, '\\\\').replace(/'/g, "\\'"); }
+
+    async function loadCoachData() {
+      const dash = await (await fetch(`/api/coach/dashboard/${currentUser.id}`)).json().catch(() => ({}));
+      coachSwimmers = dash.swimmers || [];
+      const sum = dash.summary || { total: 0, ahead: 0, behind: 0, noGoals: 0 };
+      document.getElementById('totalSwimmers').textContent = sum.total;
+      document.getElementById('aheadCount').textContent = sum.ahead;
+      document.getElementById('behindCount').textContent = sum.behind;
+      document.getElementById('noGoalsCount').textContent = sum.noGoals;
+
+      const bres = await (await fetch(`/api/batches/${currentUser.id}`)).json().catch(() => ({}));
+      const batches = bres.batches || [];
+      coachBatches = await Promise.all(batches.map(async b => {
+        const lb = await (await fetch(`/api/batches/${b.id}/leaderboard`)).json().catch(() => ({}));
+        return { id: b.id, name: b.name, memberIds: (lb.leaderboard || []).map(m => m.id) };
+      }));
+
+      populateBatchDropdowns();
+      renderGroupedSwimmers();
+      populateRecChecklist();
+      loadCoachLeaderboard();
+    }
+
+    function populateBatchDropdowns() {
+      const opts = coachBatches.map(b => `<option value="${b.id}">${b.name}</option>`).join('');
+      const lb = document.getElementById('coachLbBatch');
+      if (lb) { const cur = lb.value; lb.innerHTML = '<option value="">All swimmers</option>' + opts; lb.value = cur; }
+      const rb = document.getElementById('recBatchSelect');
+      if (rb) rb.innerHTML = '<option value="">Choose a batch to tick its swimmers…</option>' + opts;
+    }
+
+    function renderGroupedSwimmers() {
+      const container = document.getElementById('coachGroupedSwimmers');
+      if (!container) return;
+      if (!coachSwimmers.length) { container.innerHTML = '<p class="empty-state">No swimmers yet</p>'; return; }
+      const inBatch = new Set();
+      coachBatches.forEach(b => b.memberIds.forEach(id => inBatch.add(id)));
+      let html = '';
+      coachBatches.forEach(b => {
+        html += renderSwimmerGroup(b.name, coachSwimmers.filter(s => b.memberIds.includes(s.id)), b.id);
+      });
+      html += renderSwimmerGroup('Individuals', coachSwimmers.filter(s => !inBatch.has(s.id)), null);
+      container.innerHTML = html;
+    }
+
+    function renderSwimmerGroup(title, members, batchId) {
+      const manage = batchId ? `<button class="btn btn-secondary btn-small" onclick="viewBatchDetail('${batchId}', '${jsStr(title)}')">Manage</button>` : '';
+      const head = `<div class="group-head"><h4>📦 ${title} <span class="group-count">${members.length}</span></h4>${manage}</div>`;
+      if (!members.length) return `<div class="swimmer-group">${head}<p class="empty-state">No swimmers</p></div>`;
+      const rows = members.map(s => `<div class="swimmer-detail-card ${s.status}"><div class="swimmer-detail-header"><h4>${s.name}</h4><span class="status-badge status-${s.status}">${s.status === 'ahead' ? '✓' : s.status === 'behind' ? '↓' : '-'}</span></div><div class="swimmer-detail-stats"><span>Goals <strong>${s.goalsAhead}/${s.goalsCount}</strong></span><span>Sessions <strong>${s.sessionsThisMonth}</strong></span><span>🔥 <strong>${s.streak}</strong></span></div><button class="btn btn-small btn-primary" style="margin-top:8px;" onclick="showCommentSection('${s.id}', '${jsStr(s.name)}')">💬 Comment</button><button class="btn btn-small btn-success" style="margin-top:8px;margin-left:4px;" onclick="showAwardBadge('${s.id}', '${jsStr(s.name)}')">🏅 Award</button></div>`).join('');
+      return `<div class="swimmer-group">${head}${rows}</div>`;
     }
 
     async function loadCoachLeaderboard() {
-      const res = await fetch(`/api/leaderboard/${currentUser.id}`);
-      const data = await res.json();
-      track('leaderboard_view', { role: 'coach' });
+      const batchId = document.getElementById('coachLbBatch')?.value || '';
+      const url = batchId ? `/api/batches/${batchId}/leaderboard` : `/api/leaderboard/${currentUser.id}`;
+      const data = await (await fetch(url)).json().catch(() => ({}));
+      track('leaderboard_view', { role: 'coach', scope: batchId ? 'batch' : 'all' });
       const c = document.getElementById('coachLeaderboard');
-      if (!data.enabled || !data.leaderboard.length) { c.innerHTML = '<p class="empty-state">Add swimmers to see leaderboard</p>'; return; }
-      c.innerHTML = data.leaderboard.map(s => `<div class="leaderboard-entry ${s.rank <= 3 ? 'rank-' + s.rank : ''}"><div class="rank-badge ${s.rank > 3 ? 'default' : ''}">${s.rank}</div><div class="leaderboard-info"><div class="leaderboard-name">${s.name}</div><div class="leaderboard-stats"><span>📈${s.improvementPct > 0 ? '+' : ''}${s.improvementPct}%</span><span>🎯${s.goalCompletionRate}%</span></div></div><div class="leaderboard-score"><div class="score">${s.compositeScore}</div></div></div>`).join('');
+      const lb = data.leaderboard || [];
+      const enabled = batchId ? true : data.enabled;
+      if (!enabled || !lb.length) { c.innerHTML = '<p class="empty-state">No swimmers to rank yet</p>'; return; }
+      c.innerHTML = lb.map(s => {
+        const goal = s.goalCompletionRate != null ? s.goalCompletionRate : s.goalRate;
+        return `<div class="leaderboard-entry ${s.rank <= 3 ? 'rank-' + s.rank : ''}"><div class="rank-badge ${s.rank > 3 ? 'default' : ''}">${s.rank}</div><div class="leaderboard-info"><div class="leaderboard-name">${s.name}</div><div class="leaderboard-stats"><span>📈${s.improvementPct > 0 ? '+' : ''}${s.improvementPct}%</span><span>🎯${goal}%</span></div></div><div class="leaderboard-score"><div class="score">${s.compositeScore}</div></div></div>`;
+      }).join('');
     }
 
     async function loadSwimmerLeaderboard() {
@@ -559,11 +633,8 @@
     // ========== COACH BATCHES ==========
     let currentBatchId = null;
     async function loadBatches() {
-      const res = await fetch(`/api/batches/${currentUser.id}`);
-      const data = await res.json();
-      const container = document.getElementById("batchesList");
-      if (!data.batches?.length) { container.innerHTML = "<p class=\"empty-state\">No batches yet</p>"; return; }
-      container.innerHTML = data.batches.map(b => `<div style="background:rgba(255,255,255,0.03);padding:12px;border-radius:10px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;"><div><div style="font-weight:600;">${b.name}</div><div style="font-size:0.75rem;color:#94a3b8;">${b.memberCount} swimmers</div></div><button class="btn btn-primary btn-small" onclick="viewBatchDetail('${b.id}', '${b.name}')">Manage</button></div>`).join("");
+      // Batches now render inline with swimmers, grouped — refresh the whole coach view.
+      await loadCoachData();
     }
     function showCreateBatch() { document.getElementById("createBatchForm").style.display = "block"; }
     function hideCreateBatch() { document.getElementById("createBatchForm").style.display = "none"; }
@@ -831,11 +902,23 @@
     async function loadCoachSwimmerSelects() {
       const res = await fetch(`/api/coach/swimmers/${currentUser.id}`);
       const data = await res.json().catch(() => ({}));
-      const options = "<option value=\"\">Select swimmer...</option>" + (data.swimmers || []).map(s => `<option value="${s.id}">${s.name}</option>`).join("");
-      ["recSwimmerSelect", "assignSwimmerSelect"].forEach(id => {
-        const sel = document.getElementById(id);
-        if (sel) sel.innerHTML = options;
-      });
+      const sel = document.getElementById("assignSwimmerSelect");
+      if (sel) sel.innerHTML = "<option value=\"\">Select swimmer...</option>" + (data.swimmers || []).map(s => `<option value="${s.id}">${s.name}</option>`).join("");
+    }
+
+    // Recommend-a-meet: checkbox list of swimmers + batch quick-pick
+    function populateRecChecklist() {
+      const container = document.getElementById("recSwimmerChecklist");
+      if (!container) return;
+      if (!coachSwimmers.length) { container.innerHTML = '<p class="empty-state">No swimmers yet</p>'; return; }
+      container.innerHTML = coachSwimmers.map(s => `<label class="check-row"><input type="checkbox" class="rec-swimmer" value="${s.id}"><span>${s.name}</span></label>`).join("");
+    }
+
+    function applyRecBatch() {
+      const batchId = document.getElementById("recBatchSelect").value;
+      const batch = coachBatches.find(b => b.id === batchId);
+      const ids = batch ? new Set(batch.memberIds) : null;
+      document.querySelectorAll(".rec-swimmer").forEach(cb => { if (ids) cb.checked = ids.has(cb.value); });
     }
 
     // ========== COACH: ASSIGN GOAL / ROUTINE ==========
@@ -897,29 +980,27 @@
     }
 
     async function sendMeetRecommendation() {
-      const swimmerId = document.getElementById("recSwimmerSelect").value;
+      const swimmerIds = Array.from(document.querySelectorAll(".rec-swimmer:checked")).map(cb => cb.value);
       const meetName = document.getElementById("recMeetName").value.trim();
-      if (!swimmerId) return alert("Select a swimmer");
+      const status = document.getElementById("recStatus");
+      if (!swimmerIds.length) return alert("Select at least one swimmer");
       if (!meetName) return alert("Enter a meet name");
       const payload = {
         coachId: currentUser.id,
-        swimmerId,
+        swimmerIds,
         meetName,
         meetDate: document.getElementById("recMeetDate").value || null,
-        location: document.getElementById("recMeetLocation").value || null,
-        stroke: document.getElementById("recStroke").value || null,
-        distance: document.getElementById("recDistance").value || null,
         note: document.getElementById("recNote").value || null
       };
       const res = await fetch("/api/meets/recommend", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
       const data = await res.json().catch(() => ({}));
-      const status = document.getElementById("recStatus");
       if (data.error) { status.innerHTML = `<span class="error">${data.error}</span>`; return; }
-      status.innerHTML = `<span class="success">Recommendation sent!</span>`;
+      status.innerHTML = `<span class="success">Recommendation sent to ${swimmerIds.length} swimmer${swimmerIds.length > 1 ? "s" : ""}!</span>`;
       document.getElementById("recMeetName").value = "";
       document.getElementById("recMeetDate").value = "";
-      document.getElementById("recMeetLocation").value = "";
       document.getElementById("recNote").value = "";
+      document.getElementById("recBatchSelect").value = "";
+      document.querySelectorAll(".rec-swimmer").forEach(cb => cb.checked = false);
     }
 
     function logout() {
@@ -930,6 +1011,9 @@
       document.getElementById('authSection').classList.add('active');
       document.getElementById('coachSection').style.display = 'none';
       document.getElementById('swimmerSection').style.display = 'none';
+      document.getElementById('roleChip').style.display = 'none';
+      document.getElementById('inviteIcon').style.display = 'none';
+      document.getElementById('settingsGear').style.display = 'none';
     }
 
     async function setActiveGoal(goalId) {
