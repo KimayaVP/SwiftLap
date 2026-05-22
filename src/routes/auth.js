@@ -62,8 +62,12 @@ router.post('/auth/oauth-sync', async (req, res) => {
     }
 
     const name = authUser.user_metadata?.full_name || authUser.user_metadata?.name || (authUser.email || '').split('@')[0];
+    const finalRole = role === 'coach' ? 'coach' : 'swimmer';
+    // If a coach invited this person by email, auto-link them on signup.
+    const invitedByCoach = authUser.user_metadata?.invited_by_coach;
+    const coachId = finalRole === 'swimmer' && invitedByCoach ? invitedByCoach : null;
     const { data: profile, error } = await supabase.from('profiles')
-      .insert({ id: authUser.id, email: authUser.email, name, role: role === 'coach' ? 'coach' : 'swimmer' })
+      .insert({ id: authUser.id, email: authUser.email, name, role: finalRole, coach_id: coachId })
       .select().single();
     if (error) return res.status(400).json({ error: error.message });
 

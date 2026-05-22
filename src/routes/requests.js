@@ -122,19 +122,38 @@ router.post('/requests/respond', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+const WEB_URL = process.env.APP_URL || 'https://swiftlap.onrender.com';
+
 // Coach invites swimmer by email
 router.post('/requests/invite', async (req, res) => {
   try {
     const { coachId, swimmerEmail } = req.body;
+    if (!swimmerEmail) return res.status(400).json({ error: 'Enter an email' });
 
     // Find swimmer by email
-    const { data: swimmer, error: findError } = await supabase
+    const { data: swimmer } = await supabase
       .from('profiles')
       .select('id, name, email, role, coach_id')
       .eq('email', swimmerEmail)
       .single();
 
-    if (findError || !swimmer) return res.status(404).json({ error: 'Swimmer not found' });
+    // Not on the platform yet → email them a SwiftLap signup invite.
+    if (!swimmer) {
+      const { error: inviteError } = await supabase.auth.admin.inviteUserByEmail(swimmerEmail, {
+        redirectTo: WEB_URL,
+        data: { invited_by_coach: coachId }
+      });
+      if (inviteError) {
+        // Auth user exists but never finished signup — nudge them to the app instead of erroring out.
+        if (/already.*registered|exists/i.test(inviteError.message)) {
+          return res.json({ success: true, emailed: true, message: 'They already have a pending SwiftLap account — ask them to finish signing up.' });
+        }
+        return res.status(400).json({ error: inviteError.message });
+      }
+      await trackEvent(coachId, 'invite_emailed', { email: swimmerEmail });
+      return res.json({ success: true, emailed: true, message: `Invite email sent to ${swimmerEmail}.` });
+    }
+
     if (swimmer.role !== 'swimmer') return res.status(400).json({ error: 'User is not a swimmer' });
     if (swimmer.coach_id) return res.status(400).json({ error: 'Swimmer already has a coach' });
 

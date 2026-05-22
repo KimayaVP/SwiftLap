@@ -155,7 +155,10 @@
         <div class="section-view" id="view-coach-overview" style="display:none;">
           <button class="btn btn-secondary btn-small back-btn" onclick="showHome()">← Back</button>
           <div class="card">
-            <h2>📊 Team Overview</h2>
+            <div class="card-head-row">
+              <h2>📊 Team Overview</h2>
+              <div id="overviewFilter" class="batch-filter"></div>
+            </div>
             <div class="summary-grid">
               <div class="summary-box"><div class="number" id="totalSwimmers">0</div><div class="label">Total</div></div>
               <div class="summary-box ahead"><div class="number" id="aheadCount">0</div><div class="label">On Track</div></div>
@@ -209,18 +212,24 @@
         <div class="section-view" id="view-coach-assign" style="display:none;">
           <button class="btn btn-secondary btn-small back-btn" onclick="showHome()">← Back</button>
           <div class="card">
-            <h2>🎯 Assign Goal or Routine</h2>
+            <h2>🎯 Assign</h2>
             <p style="font-size:0.85rem;color:#94a3b8;margin-bottom:12px;">Assign directly to a swimmer — it appears in their app marked with a 👨‍🏫 coach badge.</p>
             <div class="form-group"><label>Swimmer</label><select id="assignSwimmerSelect"><option value="">Select swimmer...</option></select></div>
-            <h4 style="margin:8px 0 12px;color:#22c55e;">Assign a Goal</h4>
-            <div class="form-group"><label>Stroke</label><select id="assignGoalStroke"><option value="Freestyle">Freestyle</option><option value="Backstroke">Backstroke</option><option value="Breaststroke">Breaststroke</option><option value="Butterfly">Butterfly</option><option value="IM">IM</option></select></div>
-            <div class="form-group"><label>Distance</label><select id="assignGoalDistance"><option value="50">50m</option><option value="100">100m</option><option value="200">200m</option><option value="400">400m</option></select></div>
-            <div class="form-group"><label>Target</label><div class="time-inputs"><input type="number" id="assignGoalMin" placeholder="Min" min="0"><input type="number" id="assignGoalSec" placeholder="Sec" min="0" max="59"></div></div>
-            <button class="btn btn-success" onclick="assignGoal()">Assign Goal</button>
-            <h4 style="margin:20px 0 12px;color:#0ea5e9;">Assign a Training Routine</h4>
-            <div class="form-group"><label>Title</label><input type="text" id="assignRoutineTitle" placeholder="Endurance week: 3x400m"></div>
-            <div class="form-group"><label>Details</label><textarea id="assignRoutineDetails" placeholder="Mon/Wed/Fri: 400m warmup, 8x50m sprints @ 1:00 rest, 200m cooldown..." style="width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.05);color:white;min-height:80px;"></textarea></div>
-            <button class="btn btn-primary" onclick="assignRoutine()">Assign Routine</button>
+            <div class="tabs">
+              <button class="tab active" id="assignTabGoal" onclick="showAssignTab('goal')">Goal</button>
+              <button class="tab" id="assignTabRoutine" onclick="showAssignTab('routine')">Routine</button>
+            </div>
+            <div id="assignGoalPanel">
+              <div class="form-group"><label>Stroke</label><select id="assignGoalStroke"><option value="Freestyle">Freestyle</option><option value="Backstroke">Backstroke</option><option value="Breaststroke">Breaststroke</option><option value="Butterfly">Butterfly</option><option value="IM">IM</option></select></div>
+              <div class="form-group"><label>Distance</label><select id="assignGoalDistance"><option value="50">50m</option><option value="100">100m</option><option value="200">200m</option><option value="400">400m</option></select></div>
+              <div class="form-group"><label>Target</label><div class="time-inputs"><input type="number" id="assignGoalMin" placeholder="Min" min="0"><input type="number" id="assignGoalSec" placeholder="Sec" min="0" max="59"></div></div>
+              <button class="btn btn-success" onclick="assignGoal()">Assign Goal</button>
+            </div>
+            <div id="assignRoutinePanel" style="display:none;">
+              <div class="form-group"><label>Title</label><input type="text" id="assignRoutineTitle" placeholder="Endurance week: 3x400m"></div>
+              <div class="form-group"><label>Details</label><textarea id="assignRoutineDetails" placeholder="Mon/Wed/Fri: 400m warmup, 8x50m sprints @ 1:00 rest, 200m cooldown..." style="width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.05);color:white;min-height:80px;"></textarea></div>
+              <button class="btn btn-primary" onclick="assignRoutine()">Assign Routine</button>
+            </div>
             <div id="assignStatus" style="margin-top:10px;"></div>
           </div>
         </div>
