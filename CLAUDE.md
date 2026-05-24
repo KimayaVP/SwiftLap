@@ -79,3 +79,24 @@ All routers are mounted under `/api` in `src/index.js`. **Each router defines it
 ## Maintenance
 
 **Keep this file and the memory index up to date.** Whenever the folder structure, stack, routing convention, or major workflows change, update this CLAUDE.md and the memory at `~/.claude/projects/-Users-Kimaya-SwiftLap-project/memory/` in the same change.
+
+## Cross-platform parity
+
+Every feature/change must be replicated across **web (`public/`) + the native iOS app (`../SwiftLapApp`) + future Android**. Never ship to one client only. The endpoint usually lives here once; the parity work is per-client UI.
+
+## Current state & next steps (as of 2026-05-22)
+
+There is now a **native iOS + watchOS app** in the sibling folder `../SwiftLapApp` (repo `KimayaVP/SwiftLapApp`) that mirrors this web app and uses these same APIs. See its `CLAUDE.md`.
+
+Recently added endpoints (all under `/api`):
+- `auth.js`: `/auth/oauth-sync` (Google/Apple, links by email), `/auth/delete-account` (App Store requirement; deletes user data + Supabase auth user).
+- `video.js`: videos now stored as **paths + signed URLs** (private bucket); `/video/coach-feedback` (coach reviews a clip); `/video/cleanup` (deletes clips >14 days, run by `.github/workflows/video-cleanup.yml`).
+- `requests.js`: `/requests/send` rejects `swimmer_to_coach` (coach-only linking); `/requests/invite` emails non-users a signup link.
+
+**Top open priorities (pick up here):**
+1. **🔴 API auth is not enforced.** The server uses the **service-role key** (bypasses RLS) and trusts client-supplied `userId`/`swimmerId` with no token check — any client can read/modify/delete others' data. Fix this (verify the caller's token, identify the user server-side) before launch. It is also the prerequisite for monetization.
+2. **Monetization** (free login + subscription): needs #1, then a `subscription_status` on profiles + entitlement checks on gated endpoints (+ StoreKit on iOS, Stripe on web).
+3. Move video blobs off Supabase Storage to **Cloudflare R2** (free egress) before scale.
+4. "AI" video feedback is a **stub** (`lib/feedback.js`), labeled Beta in the UIs — make it real (on-device Option D, or a model) or keep it clearly a demo for App Store.
+
+Manual Supabase steps already done 2026-05-22: ran `db/migrations/2026-05-22-video-coach-feedback.sql`; set the `videos` storage bucket to **private**.
