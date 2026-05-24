@@ -27,6 +27,25 @@ router.post('/video/upload', upload.single('video'), async (req, res) => {
   } catch (e) { await logError(e, { route: 'video-upload' }); res.status(500).json({ error: e.message }); }
 });
 
+// Coach leaves written feedback on a swimmer's uploaded video (Option A review).
+router.post('/video/coach-feedback', async (req, res) => {
+  try {
+    const { videoId, coachId, feedback } = req.body;
+    if (!videoId || !coachId || !feedback) {
+      return res.status(400).json({ error: 'videoId, coachId and feedback are required' });
+    }
+    const { data, error } = await supabase
+      .from('video_feedback')
+      .update({ coach_feedback: feedback, coach_feedback_at: new Date().toISOString(), coach_id: coachId })
+      .eq('id', videoId)
+      .select()
+      .single();
+    if (error) return res.status(400).json({ error: error.message });
+    await trackEvent(coachId, 'video_coach_feedback', { videoId });
+    res.json({ success: true, feedback: data });
+  } catch (e) { await logError(e, { route: 'video-coach-feedback' }); res.status(500).json({ error: e.message }); }
+});
+
 router.get('/video/feedback/:swimmerId', async (req, res) => {
   try {
     const { data, error } = await supabase.from('video_feedback').select('*').eq('swimmer_id', req.params.swimmerId).order('created_at', { ascending: false });
