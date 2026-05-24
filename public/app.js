@@ -518,7 +518,7 @@
     async function loadFeedback() {
       const res = await fetch(`/api/video/feedback/${currentUser.id}`);
       const data = await res.json();
-      document.getElementById('feedbackList').innerHTML = data.feedbacks.length === 0 ? '<p class="empty-state">Upload a video for feedback</p>' : data.feedbacks.slice(0, 2).map(f => `<div class="feedback-card"><h4>${f.stroke} • ${new Date(f.created_at).toLocaleDateString()}</h4><span class="score-badge">${f.feedback.overall_score}/10</span><div class="priority-box"><label>Focus on</label><p>${f.feedback.priority_focus}</p></div></div>`).join('');
+      document.getElementById('feedbackList').innerHTML = data.feedbacks.length === 0 ? '<p class="empty-state">Upload a video for feedback</p>' : data.feedbacks.slice(0, 3).map(f => `<div class="feedback-card"><h4>${f.stroke} • ${new Date(f.created_at).toLocaleDateString()}</h4><span class="score-badge">${f.feedback.overall_score}/10</span><div class="priority-box"><label>Focus on</label><p>${f.feedback.priority_focus}</p></div>${f.coach_feedback ? `<div class="priority-box" style="background:rgba(34,197,94,0.1);border-color:rgba(34,197,94,0.3);"><label>👨‍🏫 Coach</label><p>${f.coach_feedback}</p></div>` : ''}</div>`).join('');
     }
 
     document.getElementById('logTimeForm').addEventListener('submit', async (e) => {
@@ -553,6 +553,14 @@
 
     document.getElementById('videoForm').addEventListener('submit', async (e) => {
       e.preventDefault(); if (!selectedFile) return;
+      const under5min = await new Promise(resolve => {
+        const v = document.createElement('video');
+        v.preload = 'metadata';
+        v.onloadedmetadata = () => { URL.revokeObjectURL(v.src); resolve(v.duration <= 300); };
+        v.onerror = () => resolve(true);
+        v.src = URL.createObjectURL(selectedFile);
+      });
+      if (!under5min) { alert('Please choose a clip under 5 minutes.'); return; }
       document.getElementById('uploadContainer').style.display = 'none';
       document.getElementById('processingState').style.display = 'block';
       const formData = new FormData();
@@ -712,6 +720,26 @@
       document.getElementById("commentSwimmerName").textContent = swimmerName;
       document.getElementById("swimmerCommentSection").style.display = "block";
       loadSwimmerTimesForComment(swimmerId);
+      loadSwimmerVideosForReview(swimmerId);
+    }
+
+    async function loadSwimmerVideosForReview(swimmerId) {
+      const container = document.getElementById("swimmerVideosForComment");
+      if (!container) return;
+      const res = await fetch(`/api/video/feedback/${swimmerId}`);
+      const data = await res.json().catch(() => ({}));
+      const vids = data.feedbacks || [];
+      if (!vids.length) { container.innerHTML = ""; return; }
+      container.innerHTML = '<h4 style="margin:16px 0 8px;">🎥 Videos</h4>' + vids.slice(0, 5).map(v => `<div style="background:rgba(255,255,255,0.03);padding:12px;border-radius:10px;margin-bottom:10px;"><div style="font-weight:600;margin-bottom:6px;">${v.stroke} • ${new Date(v.created_at).toLocaleDateString()}</div>${v.video_url ? `<video src="${v.video_url}" controls style="width:100%;border-radius:8px;max-height:240px;"></video>` : '<div style="font-size:0.8rem;color:#94a3b8;">Video auto-deleted (14 days).</div>'}${v.coach_feedback ? `<div style="font-size:0.85rem;color:#22c55e;margin-top:6px;">Your feedback: ${v.coach_feedback}</div>` : ''}<textarea id="vidfb-${v.id}" placeholder="Feedback on this clip" style="width:100%;margin-top:8px;padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.05);color:white;min-height:50px;"></textarea><button class="btn btn-primary btn-small" onclick="sendCoachVideoFeedback('${v.id}')">Send Feedback</button></div>`).join("");
+    }
+
+    async function sendCoachVideoFeedback(videoId) {
+      const text = document.getElementById("vidfb-" + videoId).value.trim();
+      if (!text) return alert("Enter feedback");
+      const res = await fetch("/api/video/coach-feedback", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ videoId, coachId: currentUser.id, feedback: text }) });
+      const data = await res.json().catch(() => ({}));
+      if (data.error) alert(data.error);
+      else { alert("Feedback sent!"); loadSwimmerVideosForReview(currentCommentSwimmerId); }
     }
     function hideCommentSection() {
       document.getElementById("swimmerCommentSection").style.display = "none";
