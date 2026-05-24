@@ -1,0 +1,17 @@
+name: Delete old swim videos
+
+# Cost control: delete uploaded videos older than 14 days once a day.
+# Keeps the feedback record; only removes the heavy file from storage.
+# workflow_dispatch allows a manual run.
+
+on:
+  schedule:
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger video cleanup
+        run: curl -fsS -X POST https://swiftlap.onrender.com/api/video/cleanup

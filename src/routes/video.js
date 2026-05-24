@@ -27,6 +27,30 @@ router.post('/video/upload', upload.single('video'), async (req, res) => {
   } catch (e) { await logError(e, { route: 'video-upload' }); res.status(500).json({ error: e.message }); }
 });
 
+// Cost control: delete uploaded video files older than 14 days. Keeps the
+// feedback text/record — only the heavy file is removed from storage.
+// Wired to a daily GitHub Actions cron.
+router.post('/video/cleanup', async (req, res) => {
+  try {
+    const cutoff = new Date(Date.now() - 14 * 86400000).toISOString();
+    const { data: old } = await supabase
+      .from('video_feedback')
+      .select('id, video_url')
+      .lt('created_at', cutoff)
+      .not('video_url', 'is', null);
+    const expired = (old || []).filter(r => r.video_url && !r.video_url.startsWith('http'));
+    let removed = 0;
+    if (expired.length) {
+      const { error } = await supabase.storage.from('videos').remove(expired.map(r => r.video_url));
+      if (!error) {
+        removed = expired.length;
+        await supabase.from('video_feedback').update({ video_url: null }).in('id', expired.map(r => r.id));
+      }
+    }
+    res.json({ success: true, removed });
+  } catch (e) { await logError(e, { route: 'video-cleanup' }); res.status(500).json({ error: e.message }); }
+});
+
 // Coach leaves written feedback on a swimmer's uploaded video (Option A review).
 router.post('/video/coach-feedback', async (req, res) => {
   try {
