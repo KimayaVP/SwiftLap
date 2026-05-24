@@ -78,6 +78,39 @@ router.post('/auth/oauth-sync', async (req, res) => {
   } catch (e) { await logError(e, { route: 'oauth-sync' }); res.status(500).json({ error: e.message }); }
 });
 
+// Permanently delete a user's account + personal data.
+// Required by the App Store for apps that offer account creation (5.1.1(v)).
+router.post('/auth/delete-account', async (req, res) => {
+  try {
+    const { userId } = req.body;
+    if (!userId) return res.status(400).json({ error: 'Missing userId' });
+
+    const { data: profile } = await supabase.from('profiles').select('role').eq('id', userId).single();
+
+    // Personal data keyed by swimmer_id (best-effort per table).
+    const swimmerTables = ['swim_times', 'goals', 'watch_workouts', 'meet_results', 'video_feedback', 'achievements', 'streaks', 'training_plans', 'batch_members', 'meet_recommendations', 'coach_routines'];
+    for (const t of swimmerTables) {
+      await supabase.from(t).delete().eq('swimmer_id', userId);
+    }
+    await supabase.from('coach_requests').delete().or(`from_id.eq.${userId},to_id.eq.${userId}`);
+    await supabase.from('comments').delete().or(`swimmer_id.eq.${userId},coach_id.eq.${userId}`);
+
+    if (profile?.role === 'coach') {
+      await supabase.from('profiles').update({ coach_id: null }).eq('coach_id', userId);
+      await supabase.from('coach_batches').delete().eq('coach_id', userId);
+      await supabase.from('meet_recommendations').delete().eq('coach_id', userId);
+      await supabase.from('coach_routines').delete().eq('coach_id', userId);
+    }
+
+    await supabase.from('profiles').delete().eq('id', userId);
+    const { error: delErr } = await supabase.auth.admin.deleteUser(userId);
+    if (delErr) return res.status(400).json({ error: delErr.message });
+
+    await trackEvent(userId, 'account_deleted', {});
+    res.json({ success: true });
+  } catch (e) { await logError(e, { route: 'delete-account' }); res.status(500).json({ error: e.message }); }
+});
+
 router.post('/auth/login', async (req, res) => {
   try {
     const { email, password } = req.body;
