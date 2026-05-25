@@ -1,13 +1,16 @@
 const express = require('express');
-const { supabase } = require('../db');
+const { supabase, supabaseAuth } = require('../db');
 const { logError, trackEvent } = require('../lib/tracking');
+const { isSelf, isCoach, forbidden } = require('../lib/auth');
 
 const router = express.Router();
 
 router.post('/coach/add-swimmer', async (req, res) => {
   try {
-    const { email, password, name, coachId } = req.body;
-    const { data: authData, error: authError } = await supabase.auth.signUp({ email, password });
+    const coachId = req.user.id;
+    const { email, password, name } = req.body;
+    if (!isCoach(req)) return forbidden(res);
+    const { data: authData, error: authError } = await supabaseAuth.auth.signUp({ email, password });
     if (authError) return res.status(400).json({ error: authError.message });
     const { data: profile, error } = await supabase.from('profiles').insert({ id: authData.user.id, email, name, role: 'swimmer', coach_id: coachId }).select().single();
     if (error) return res.status(400).json({ error: error.message });
@@ -18,6 +21,7 @@ router.post('/coach/add-swimmer', async (req, res) => {
 
 router.get('/coach/swimmers/:coachId', async (req, res) => {
   try {
+    if (!isSelf(req, req.params.coachId)) return forbidden(res);
     const { data, error } = await supabase.from('profiles').select('*').eq('coach_id', req.params.coachId);
     if (error) return res.status(400).json({ error: error.message });
     res.json({ swimmers: data });
@@ -26,6 +30,7 @@ router.get('/coach/swimmers/:coachId', async (req, res) => {
 
 router.get('/coach/dashboard/:coachId', async (req, res) => {
   try {
+    if (!isSelf(req, req.params.coachId)) return forbidden(res);
     const coachId = req.params.coachId;
     const month = new Date().toISOString().slice(0, 7);
     const startOfMonth = `${month}-01`;

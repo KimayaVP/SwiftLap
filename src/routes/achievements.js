@@ -2,11 +2,13 @@ const express = require('express');
 const { supabase } = require('../db');
 const { logError } = require('../lib/tracking');
 const { BADGES, checkChallengeProgress } = require('../lib/badges');
+const { canAccessSwimmer, forbidden } = require('../lib/auth');
 
 const router = express.Router();
 
 router.get('/achievements/:swimmerId', async (req, res) => {
   try {
+    if (!(await canAccessSwimmer(req, req.params.swimmerId))) return forbidden(res);
     const swimmerId = req.params.swimmerId;
     const { data: achievements } = await supabase.from('achievements').select('*').eq('swimmer_id', swimmerId).order('unlocked_at', { ascending: false });
     const { data: streak } = await supabase.from('streaks').select('*').eq('swimmer_id', swimmerId).single();

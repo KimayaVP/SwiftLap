@@ -1,13 +1,16 @@
 const express = require('express');
 const { supabase } = require('../db');
 const { trackEvent } = require('../lib/tracking');
+const { isSelf, isCoach, coachOwnsSwimmer, canAccessSwimmer, forbidden } = require('../lib/auth');
 
 const router = express.Router();
 
 // Award badge to swimmer
 router.post('/coach-badges/award', async (req, res) => {
   try {
-    const { coachId, swimmerId, badgeName, badgeIcon, message } = req.body;
+    const coachId = req.user.id;
+    const { swimmerId, badgeName, badgeIcon, message } = req.body;
+    if (!isCoach(req) || !(await coachOwnsSwimmer(coachId, swimmerId))) return forbidden(res);
 
     const { data, error } = await supabase
       .from('coach_badges')
@@ -25,6 +28,7 @@ router.post('/coach-badges/award', async (req, res) => {
 // Get badges awarded to a swimmer
 router.get('/coach-badges/swimmer/:swimmerId', async (req, res) => {
   try {
+    if (!(await canAccessSwimmer(req, req.params.swimmerId))) return forbidden(res);
     const { data, error } = await supabase
       .from('coach_badges')
       .select('*, coach:coach_id(name)')
@@ -39,6 +43,7 @@ router.get('/coach-badges/swimmer/:swimmerId', async (req, res) => {
 // Get badges awarded by a coach
 router.get('/coach-badges/coach/:coachId', async (req, res) => {
   try {
+    if (!isSelf(req, req.params.coachId)) return forbidden(res);
     const { data, error } = await supabase
       .from('coach_badges')
       .select('*, swimmer:swimmer_id(name)')

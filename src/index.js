@@ -12,6 +12,12 @@ app.use(express.json());
 // free-tier dyno never sleeps during pool hours. Must stay cheap — no DB.
 app.get('/healthz', (req, res) => res.json({ ok: true }));
 
+// Authentication gate: verifies the caller's Supabase token and loads their
+// profile into req.user for every /api route except a small public allowlist
+// (health, config, login/signup, cron + watch device endpoints). Route handlers
+// then enforce per-resource authorization against req.user.
+app.use('/api', require('./lib/auth').authGate);
+
 // Mount all API routes under /api. Each router contains its own
 // path prefix (e.g. /goals, /watch) so the mount point is just /api.
 app.use('/api', require('./routes/auth'));

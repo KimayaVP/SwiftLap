@@ -1,11 +1,13 @@
 const express = require('express');
 const { supabase } = require('../db');
 const { logError, trackEvent } = require('../lib/tracking');
+const { canAccessSwimmer, forbidden } = require('../lib/auth');
 
 const router = express.Router();
 
 router.get('/insights/:swimmerId', async (req, res) => {
   try {
+    if (!(await canAccessSwimmer(req, req.params.swimmerId))) return forbidden(res);
     const swimmerId = req.params.swimmerId;
     const d30 = new Date(Date.now() - 30 * 86400000).toISOString().split('T')[0];
     const d60 = new Date(Date.now() - 60 * 86400000).toISOString().split('T')[0];

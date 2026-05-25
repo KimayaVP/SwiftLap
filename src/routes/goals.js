@@ -3,6 +3,7 @@ const { supabase } = require('../db');
 const { logError, trackEvent } = require('../lib/tracking');
 const { getWeekStart } = require('../lib/utils');
 const { checkAndAwardBadges } = require('../lib/badges');
+const { canAccessSwimmer, coachOwnsSwimmer, isCoach, forbidden } = require('../lib/auth');
 
 const router = express.Router();
 
@@ -12,7 +13,8 @@ const router = express.Router();
 
 router.post('/goals', async (req, res) => {
   try {
-    const { swimmerId, stroke, distance, targetMinutes, targetSeconds } = req.body;
+    const swimmerId = req.user.id;
+    const { stroke, distance, targetMinutes, targetSeconds } = req.body;
     const target = (parseInt(targetMinutes) * 60) + parseInt(targetSeconds);
     const month = new Date().toISOString().slice(0, 7);
     const { data: ex } = await supabase.from('goals').select('*').eq('swimmer_id', swimmerId).eq('stroke', stroke).eq('distance', distance).eq('month', month).single();
@@ -30,10 +32,12 @@ router.post('/goals', async (req, res) => {
 // Coach assigns a goal to one of their swimmers (tagged source='coach')
 router.post('/goals/assign', async (req, res) => {
   try {
-    const { coachId, swimmerId, stroke, distance, targetMinutes, targetSeconds } = req.body;
-    if (!coachId || !swimmerId || !stroke || !distance) {
-      return res.status(400).json({ error: 'coachId, swimmerId, stroke and distance are required' });
+    const coachId = req.user.id;
+    const { swimmerId, stroke, distance, targetMinutes, targetSeconds } = req.body;
+    if (!swimmerId || !stroke || !distance) {
+      return res.status(400).json({ error: 'swimmerId, stroke and distance are required' });
     }
+    if (!isCoach(req) || !(await coachOwnsSwimmer(coachId, swimmerId))) return forbidden(res);
     const target = (parseInt(targetMinutes) * 60) + parseInt(targetSeconds);
     const month = new Date().toISOString().slice(0, 7);
     const { data: ex } = await supabase.from('goals').select('id').eq('swimmer_id', swimmerId).eq('stroke', stroke).eq('distance', parseInt(distance)).eq('month', month).single();
@@ -50,7 +54,8 @@ router.post('/goals/assign', async (req, res) => {
 
 router.post('/goals/set-active', async (req, res) => {
   try {
-    const { swimmerId, goalId } = req.body;
+    const swimmerId = req.user.id;
+    const { goalId } = req.body;
 
     const { error } = await supabase
       .from('profiles')
@@ -74,6 +79,7 @@ router.post('/goals/set-active', async (req, res) => {
 
 router.get('/goals/all/:swimmerId', async (req, res) => {
   try {
+    if (!(await canAccessSwimmer(req, req.params.swimmerId))) return forbidden(res);
     const { data: profile } = await supabase
       .from('profiles')
       .select('active_goal_id')
@@ -120,6 +126,7 @@ router.get('/goals/all/:swimmerId', async (req, res) => {
 
 router.get('/goals/:swimmerId', async (req, res) => {
   try {
+    if (!(await canAccessSwimmer(req, req.params.swimmerId))) return forbidden(res);
     const { data, error } = await supabase.from('goals').select('*').eq('swimmer_id', req.params.swimmerId).eq('month', new Date().toISOString().slice(0, 7)).order('created_at', { ascending: false });
     if (error) return res.status(400).json({ error: error.message });
     res.json({ goals: data });
@@ -128,6 +135,7 @@ router.get('/goals/:swimmerId', async (req, res) => {
 
 router.get('/progress/:swimmerId', async (req, res) => {
   try {
+    if (!(await canAccessSwimmer(req, req.params.swimmerId))) return forbidden(res);
     const month = new Date().toISOString().slice(0, 7);
     const { data: goals } = await supabase.from('goals').select('*').eq('swimmer_id', req.params.swimmerId).eq('month', month).order('created_at', { ascending: false });
     const { data: times } = await supabase.from('swim_times').select('*').eq('swimmer_id', req.params.swimmerId).gte('date', `${month}-01`);

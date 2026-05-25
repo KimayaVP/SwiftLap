@@ -2,6 +2,7 @@ const express = require('express');
 const { supabase } = require('../db');
 const { trackEvent } = require('../lib/tracking');
 const { generateInviteCode } = require('../lib/utils');
+const { isSelf, inGroup, forbidden } = require('../lib/auth');
 
 const router = express.Router();
 
@@ -9,7 +10,8 @@ const router = express.Router();
 
 router.post('/groups/create', async (req, res) => {
   try {
-    const { name, swimmerId } = req.body;
+    const swimmerId = req.user.id;
+    const { name } = req.body;
     const inviteCode = generateInviteCode();
 
     const { data: group, error } = await supabase
@@ -32,7 +34,8 @@ router.post('/groups/create', async (req, res) => {
 
 router.post('/groups/join', async (req, res) => {
   try {
-    const { code, swimmerId } = req.body;
+    const swimmerId = req.user.id;
+    const { code } = req.body;
 
     const { data: group, error: findError } = await supabase
       .from('swimmer_groups')
@@ -65,7 +68,8 @@ router.post('/groups/join', async (req, res) => {
 
 router.post('/groups/leave', async (req, res) => {
   try {
-    const { groupId, swimmerId } = req.body;
+    const swimmerId = req.user.id;
+    const { groupId } = req.body;
 
     const { error } = await supabase
       .from('group_members')
@@ -82,6 +86,7 @@ router.post('/groups/leave', async (req, res) => {
 // Get group leaderboard. Two-segment path so doesn't conflict with /:swimmerId.
 router.get('/groups/:groupId/leaderboard', async (req, res) => {
   try {
+    if (!(await inGroup(req.user.id, req.params.groupId))) return forbidden(res);
     // Get all members
     const { data: members } = await supabase
       .from('group_members')
@@ -168,6 +173,7 @@ router.get('/groups/:groupId/leaderboard', async (req, res) => {
 // Get swimmer's groups (parameterized — keep last)
 router.get('/groups/:swimmerId', async (req, res) => {
   try {
+    if (!isSelf(req, req.params.swimmerId)) return forbidden(res);
     const { data: memberships, error } = await supabase
       .from('group_members')
       .select('group_id, swimmer_groups(id, name, invite_code, created_by)')

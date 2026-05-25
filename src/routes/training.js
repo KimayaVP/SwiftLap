@@ -3,11 +3,13 @@ const { supabase } = require('../db');
 const { logError, trackEvent } = require('../lib/tracking');
 const { getWeekStart, formatTime } = require('../lib/utils');
 const { generatePlan } = require('../lib/plan');
+const { isSelf, isCoach, coachOwnsSwimmer, canAccessSwimmer, forbidden } = require('../lib/auth');
 
 const router = express.Router();
 
 router.get('/training-plan/:swimmerId', async (req, res) => {
   try {
+    if (!(await canAccessSwimmer(req, req.params.swimmerId))) return forbidden(res);
     const swimmerId = req.params.swimmerId;
     const weekStart = getWeekStart(new Date());
     const month = new Date().toISOString().slice(0, 7);
@@ -48,6 +50,7 @@ router.get('/training-plan/:swimmerId', async (req, res) => {
 
 router.get('/race-plan/:swimmerId', async (req, res) => {
   try {
+    if (!(await canAccessSwimmer(req, req.params.swimmerId))) return forbidden(res);
     const month = new Date().toISOString().slice(0, 7);
     const { data: goals } = await supabase.from('goals').select('*').eq('swimmer_id', req.params.swimmerId).eq('month', month).order('created_at', { ascending: false });
     const { data: times } = await supabase.from('swim_times').select('*').eq('swimmer_id', req.params.swimmerId);
@@ -64,10 +67,12 @@ router.get('/race-plan/:swimmerId', async (req, res) => {
 // Coach assigns a custom training routine to a swimmer
 router.post('/training-routines/assign', async (req, res) => {
   try {
-    const { coachId, swimmerId, title, details } = req.body;
-    if (!coachId || !swimmerId || !title) {
-      return res.status(400).json({ error: 'coachId, swimmerId and title are required' });
+    const coachId = req.user.id;
+    const { swimmerId, title, details } = req.body;
+    if (!swimmerId || !title) {
+      return res.status(400).json({ error: 'swimmerId and title are required' });
     }
+    if (!isCoach(req) || !(await coachOwnsSwimmer(coachId, swimmerId))) return forbidden(res);
     const { data, error } = await supabase
       .from('coach_routines')
       .insert({ coach_id: coachId, swimmer_id: swimmerId, title, details: details || null })
@@ -82,6 +87,7 @@ router.post('/training-routines/assign', async (req, res) => {
 // Swimmer views routines assigned by their coach
 router.get('/training-routines/:swimmerId', async (req, res) => {
   try {
+    if (!(await canAccessSwimmer(req, req.params.swimmerId))) return forbidden(res);
     const { data, error } = await supabase
       .from('coach_routines')
       .select('*')
@@ -103,6 +109,10 @@ router.get('/training-routines/:swimmerId', async (req, res) => {
 // Coach or swimmer removes an assigned routine
 router.delete('/training-routines/:id', async (req, res) => {
   try {
+    const { data: routine } = await supabase.from('coach_routines').select('coach_id, swimmer_id').eq('id', req.params.id).single();
+    if (!routine) return res.status(404).json({ error: 'Routine not found' });
+    // The coach who assigned it, or the swimmer it's for, may remove it.
+    if (!isSelf(req, routine.coach_id) && !isSelf(req, routine.swimmer_id)) return forbidden(res);
     const { error } = await supabase.from('coach_routines').delete().eq('id', req.params.id);
     if (error) return res.status(400).json({ error: error.message });
     res.json({ success: true });
