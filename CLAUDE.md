@@ -90,13 +90,38 @@ There is now a **native iOS + watchOS app** in the sibling folder `../SwiftLapAp
 
 Recently added endpoints (all under `/api`):
 - `auth.js`: `/auth/oauth-sync` (Google/Apple, links by email), `/auth/delete-account` (App Store requirement; deletes user data + Supabase auth user).
-- `video.js`: videos now stored as **paths + signed URLs** (private bucket); `/video/coach-feedback` (coach reviews a clip); `/video/cleanup` (deletes clips >14 days, run by `.github/workflows/video-cleanup.yml`).
-- `requests.js`: `/requests/send` rejects `swimmer_to_coach` (coach-only linking); `/requests/invite` emails non-users a signup link.
+- `video.js`: videos now stored as **paths + signed URLs** (private bucket); `/video/coach-feedback` (coach reviews a clip); `/video/cleanup` (deletes clips >14 days, run by `.github/workflows/video-cleanup.yml`); `/video/pending/:coachId` (coach review queue — clips from the coach's swimmers with no coach feedback yet; powers the review-bell notifications on web + iOS).
+- `batches.js`: `/batches/move` (move a swimmer between batches in one step — remove from `fromBatchId` + add to `toBatchId`; `fromBatchId` optional).
+- `requests.js`: `/requests/send` rejects `swimmer_to_coach` (coach-only linking); `/requests/invite` emails non-users a signup link; `/requests/unlink` removes a swimmer from a coach's roster (`coach_id → null`) — callable by the swimmer or their coach.
+
+## API authentication (enforced as of 2026-05-24)
+
+Every `/api` route now requires a valid Supabase access token. `src/lib/auth.js`
+provides `authGate` (mounted on `/api` in `index.js`): it verifies the Bearer
+token via `supabase.auth.getUser()` and loads the caller's profile into
+`req.user`. Route handlers derive the acting user from `req.user` (never the
+request body) and enforce per-resource ownership with the helpers in
+`lib/auth.js` (`isSelf`, `coachOwnsSwimmer`, `coachOwnsBatch`, `inGroup`,
+`canAccessSwimmer`, `forbidden`).
+
+- **Public paths** (no token): `/health`, `/config`, `/auth/login`,
+  `/auth/signup`, `/auth/oauth-sync`.
+- **Cron/admin** (`requireCron`, header `x-cron-secret` == `CRON_SECRET`):
+  `/video/cleanup`, `/analytics/summary`.
+- **Watch device** (no user session — proves linkage via 6-digit code +
+  `watch_linked_at`): `/watch/verify-code`, `/watch/workout`. Closing this fully
+  needs per-device tokens — a known follow-up.
+- Clients attach the token: web wraps `fetch` (`public/app.js`), iOS sets
+  `APIClient.tokenProvider` (`SwiftLapApp`). Both let the Supabase SDK refresh it.
+
+**Required env before deploy:** set `CRON_SECRET` in Render **and** as a GitHub
+Actions secret (used by `.github/workflows/video-cleanup.yml`), or video cleanup
++ the analytics summary will 401.
 
 **Top open priorities (pick up here):**
-1. **🔴 API auth is not enforced.** The server uses the **service-role key** (bypasses RLS) and trusts client-supplied `userId`/`swimmerId` with no token check — any client can read/modify/delete others' data. Fix this (verify the caller's token, identify the user server-side) before launch. It is also the prerequisite for monetization.
-2. **Monetization** (free login + subscription): needs #1, then a `subscription_status` on profiles + entitlement checks on gated endpoints (+ StoreKit on iOS, Stripe on web).
-3. Move video blobs off Supabase Storage to **Cloudflare R2** (free egress) before scale.
-4. "AI" video feedback is a **stub** (`lib/feedback.js`), labeled Beta in the UIs — make it real (on-device Option D, or a model) or keep it clearly a demo for App Store.
+1. **Monetization** (free login + subscription): a `subscription_status` on profiles + entitlement checks on gated endpoints (+ StoreKit on iOS, Stripe on web). The auth foundation above is the prerequisite.
+2. Move video blobs off Supabase Storage to **Cloudflare R2** (free egress) before scale.
+3. **Stroke Analysis** video feedback is a **stub** (`lib/feedback.js`), labeled Beta in the UIs (renamed from "AI feedback" 2026-05-24) — make it real (on-device Option D, or a model) or keep it clearly a demo for App Store.
+4. Harden the **watch device** endpoints with per-device tokens (see above).
 
 Manual Supabase steps already done 2026-05-22: ran `db/migrations/2026-05-22-video-coach-feedback.sql`; set the `videos` storage bucket to **private**.

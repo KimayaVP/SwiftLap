@@ -1,6 +1,7 @@
 const express = require('express');
 const { supabase } = require('../db');
 const { trackEvent } = require('../lib/tracking');
+const { isSelf, isCoach, coachOwnsSwimmer, forbidden } = require('../lib/auth');
 
 const router = express.Router();
 
@@ -22,7 +23,8 @@ router.get('/coaches/search', async (req, res) => {
 // Swimmer sends request to coach
 router.post('/requests/send', async (req, res) => {
   try {
-    const { fromId, toId, type } = req.body;
+    const fromId = req.user.id;
+    const { toId, type } = req.body;
 
     // Only a coach may initiate a link (via /requests/invite). Swimmers cannot
     // request a coach — it keeps rosters honest (a swimmer can't attach to any
@@ -57,6 +59,7 @@ router.post('/requests/send', async (req, res) => {
 // Get pending requests FOR a user (requests they need to respond to)
 router.get('/requests/incoming/:userId', async (req, res) => {
   try {
+    if (!isSelf(req, req.params.userId)) return forbidden(res);
     const { data, error } = await supabase
       .from('coach_requests')
       .select('*, from:from_id(id, name, email, role)')
@@ -71,6 +74,7 @@ router.get('/requests/incoming/:userId', async (req, res) => {
 // Get pending requests FROM a user (requests they sent)
 router.get('/requests/outgoing/:userId', async (req, res) => {
   try {
+    if (!isSelf(req, req.params.userId)) return forbidden(res);
     const { data, error } = await supabase
       .from('coach_requests')
       .select('*, to:to_id(id, name, email, role)')
@@ -99,6 +103,9 @@ router.post('/requests/respond', async (req, res) => {
       .single();
 
     if (fetchError || !request) return res.status(404).json({ error: 'Request not found' });
+
+    // Only the person the request was sent to may accept/reject it.
+    if (!isSelf(req, request.to_id)) return forbidden(res);
 
     // Update request status
     const { error: updateError } = await supabase
@@ -134,7 +141,9 @@ const WEB_URL = process.env.APP_URL || 'https://swiftlap.onrender.com';
 // Coach invites swimmer by email
 router.post('/requests/invite', async (req, res) => {
   try {
-    const { coachId, swimmerEmail } = req.body;
+    const coachId = req.user.id;
+    const { swimmerEmail } = req.body;
+    if (!isCoach(req)) return forbidden(res);
     if (!swimmerEmail) return res.status(400).json({ error: 'Enter an email' });
 
     // Find swimmer by email
@@ -192,6 +201,8 @@ router.post('/requests/invite', async (req, res) => {
 router.post('/requests/unlink', async (req, res) => {
   try {
     const { swimmerId } = req.body;
+    // The swimmer themselves, or the coach who owns them, may unlink.
+    if (!isSelf(req, swimmerId) && !(isCoach(req) && await coachOwnsSwimmer(req.user.id, swimmerId))) return forbidden(res);
 
     const { error } = await supabase
       .from('profiles')

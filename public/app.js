@@ -1,6 +1,41 @@
     let currentUser = null, accessToken = null, selectedFile = null;
     let supabaseClient = null, pendingOAuthToken = null;
 
+    // Returns a currently-valid Supabase access token. Prefers the Supabase JS
+    // client (which auto-refreshes an expired token); falls back to the last
+    // stored token. The backend verifies this on every /api call.
+    async function getAccessToken() {
+      try {
+        if (supabaseClient) {
+          const { data } = await supabaseClient.auth.getSession();
+          if (data?.session?.access_token) {
+            accessToken = data.session.access_token;
+            localStorage.setItem('token', accessToken);
+            return accessToken;
+          }
+        }
+      } catch (e) { /* fall back to stored token */ }
+      return accessToken || localStorage.getItem('token');
+    }
+
+    // Attach the auth token to every same-origin /api request, except the
+    // public endpoints used before login. Wrapping fetch once keeps all call
+    // sites (and the multipart video upload) authenticated without per-call edits.
+    const _origFetch = window.fetch.bind(window);
+    const PUBLIC_API = ['/api/auth/login', '/api/auth/signup', '/api/auth/oauth-sync', '/api/config'];
+    window.fetch = async function (input, init = {}) {
+      const url = typeof input === 'string' ? input : (input && input.url) || '';
+      if (url.startsWith('/api/') && !PUBLIC_API.some(p => url.startsWith(p))) {
+        const token = await getAccessToken();
+        if (token) {
+          const headers = new Headers((init && init.headers) || (typeof input !== 'string' && input.headers) || {});
+          headers.set('Authorization', `Bearer ${token}`);
+          init = { ...init, headers };
+        }
+      }
+      return _origFetch(input, init);
+    };
+
     async function track(eventType, eventData = {}) {
       if (!currentUser) return;
       try { await fetch('/api/analytics/track', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: currentUser.id, eventType, eventData }) }); } catch (e) {}
@@ -30,7 +65,7 @@
       const data = await res.json();
       if (data.error) { document.getElementById('error').textContent = data.error; return; }
       // Take a brand-new user straight into the app instead of back to login.
-      if (data.session?.access_token) { completeLogin(data.user, data.session.access_token); return; }
+      if (data.session?.access_token) { await completeLogin(data.user, data.session); return; }
       document.getElementById('success').textContent = 'Account created — please log in.';
       showTab('login');
     });
@@ -40,14 +75,22 @@
       const res = await fetch('/api/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: document.getElementById('loginEmail').value, password: document.getElementById('loginPassword').value }) });
       const data = await res.json();
       if (data.error) document.getElementById('error').textContent = data.error;
-      else completeLogin(data.user, data.session.access_token);
+      else await completeLogin(data.user, data.session);
     });
 
-    function completeLogin(user, token) {
+    async function completeLogin(user, session) {
       currentUser = user;
+      // session may be a full Supabase session ({access_token, refresh_token})
+      // for email login, or just a token string for OAuth.
+      const token = typeof session === 'string' ? session : session?.access_token;
       accessToken = token;
-      localStorage.setItem('token', token);
+      localStorage.setItem('token', token || '');
       localStorage.setItem('user', JSON.stringify(user));
+      // Hand the session to the Supabase client so it persists + auto-refreshes
+      // the token across reloads (email login doesn't otherwise create an SDK session).
+      if (supabaseClient && session && typeof session !== 'string' && session.refresh_token) {
+        try { await supabaseClient.auth.setSession({ access_token: session.access_token, refresh_token: session.refresh_token }); } catch (e) {}
+      }
       showDashboard();
     }
 
@@ -60,15 +103,19 @@
         }
       } catch (e) { /* config unavailable — email login still works */ }
 
-      // Returning from an OAuth redirect leaves a session in the URL the client auto-parses.
-      if (supabaseClient) {
+      const savedUser = localStorage.getItem('user');
+
+      // Returning from an OAuth redirect leaves a session the client auto-parses.
+      // Only run oauth-sync when there's no saved profile yet — an already
+      // logged-in user takes the fast path below and gets a fresh token via
+      // the fetch wrapper, so we avoid a redundant round-trip on every reload.
+      if (supabaseClient && !savedUser) {
         try {
           const { data } = await supabaseClient.auth.getSession();
           if (data?.session?.access_token) { await handleOAuthSession(data.session.access_token); return; }
         } catch (e) {}
       }
 
-      const savedUser = localStorage.getItem('user');
       if (savedUser) { currentUser = JSON.parse(savedUser); accessToken = localStorage.getItem('token'); showDashboard(); }
     }
 
@@ -94,7 +141,7 @@
         document.getElementById('rolePromptModal').style.display = 'flex';
         return;
       }
-      completeLogin(data.user, token);
+      await completeLogin(data.user, token);
     }
 
     async function finishOAuthSignup(role) {
@@ -103,7 +150,7 @@
       const data = await res.json();
       if (data.error) { document.getElementById('rolePromptError').textContent = data.error; return; }
       document.getElementById('rolePromptModal').style.display = 'none';
-      completeLogin(data.user, pendingOAuthToken);
+      await completeLogin(data.user, pendingOAuthToken);
       pendingOAuthToken = null;
     }
 
@@ -115,9 +162,11 @@
       if (currentUser.role === 'coach') {
         document.getElementById('coachSection').style.display = 'block';
         document.getElementById('inviteIcon').style.display = 'block';
+        document.getElementById('reviewBell').style.display = 'block';
         showHome();
         loadCoachData();
         loadCoachSwimmerSelects();
+        refreshReviewBadge();
       } else {
         document.getElementById('swimmerSection').style.display = 'block';
         document.getElementById('settingsGear').style.display = 'block';
@@ -379,7 +428,7 @@
       const manage = batchId ? `<button class="btn btn-secondary btn-small" onclick="viewBatchDetail('${batchId}', '${jsStr(title)}')">Manage</button>` : '';
       const head = `<div class="group-head"><h4>📦 ${title} <span class="group-count">${members.length}</span></h4>${manage}</div>`;
       if (!members.length) return `<div class="swimmer-group">${head}<p class="empty-state">No swimmers</p></div>`;
-      const rows = members.map(s => `<div class="swimmer-detail-card ${s.status}"><div class="swimmer-detail-header"><h4>${s.name}</h4><span class="status-badge status-${s.status}">${s.status === 'ahead' ? '✓' : s.status === 'behind' ? '↓' : '-'}</span></div><div class="swimmer-detail-stats"><span>Goals <strong>${s.goalsAhead}/${s.goalsCount}</strong></span><span>Sessions <strong>${s.sessionsThisMonth}</strong></span><span>🔥 <strong>${s.streak}</strong></span></div><button class="btn btn-small btn-primary" style="margin-top:8px;" onclick="showCommentSection('${s.id}', '${jsStr(s.name)}')">💬 Comment</button><button class="btn btn-small btn-success" style="margin-top:8px;margin-left:4px;" onclick="showAwardBadge('${s.id}', '${jsStr(s.name)}')">🏅 Award</button></div>`).join('');
+      const rows = members.map(s => `<div class="swimmer-detail-card ${s.status}"><div class="swimmer-detail-header"><h4>${s.name}</h4><span class="status-badge status-${s.status}">${s.status === 'ahead' ? '✓' : s.status === 'behind' ? '↓' : '-'}</span></div><div class="swimmer-detail-stats"><span>Goals <strong>${s.goalsAhead}/${s.goalsCount}</strong></span><span>Sessions <strong>${s.sessionsThisMonth}</strong></span><span>🔥 <strong>${s.streak}</strong></span></div><button class="btn btn-small btn-primary" style="margin-top:8px;" onclick="showCommentSection('${s.id}', '${jsStr(s.name)}')">💬 Comment</button><button class="btn btn-small btn-success" style="margin-top:8px;margin-left:4px;" onclick="showAwardBadge('${s.id}', '${jsStr(s.name)}')">🏅 Award</button><button class="btn btn-small btn-secondary" style="margin-top:8px;margin-left:4px;" onclick="moveSwimmerPrompt('${s.id}', ${batchId ? `'${batchId}'` : 'null'})">↔ Move</button><button class="btn btn-small btn-danger" style="margin-top:8px;margin-left:4px;" onclick="removeFromSquad('${s.id}', '${jsStr(s.name)}')">✕ Squad</button></div>`).join('');
       return `<div class="swimmer-group">${head}${rows}</div>`;
     }
 
@@ -739,8 +788,64 @@
       const res = await fetch("/api/video/coach-feedback", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ videoId, coachId: currentUser.id, feedback: text }) });
       const data = await res.json().catch(() => ({}));
       if (data.error) alert(data.error);
-      else { alert("Feedback sent!"); loadSwimmerVideosForReview(currentCommentSwimmerId); }
+      else { alert("Feedback sent!"); loadSwimmerVideosForReview(currentCommentSwimmerId); refreshReviewBadge(); }
     }
+
+    // ========== COACH VIDEO REVIEW QUEUE (bell near settings) ==========
+    let reviewQueue = [];
+    async function refreshReviewBadge() {
+      if (!currentUser || currentUser.role !== 'coach') return;
+      try {
+        const res = await fetch(`/api/video/pending/${currentUser.id}`);
+        const data = await res.json().catch(() => ({}));
+        reviewQueue = data.pending || [];
+      } catch (e) { reviewQueue = []; }
+      const badge = document.getElementById('reviewBadge');
+      if (!badge) return;
+      if (reviewQueue.length) { badge.textContent = reviewQueue.length > 9 ? '9+' : reviewQueue.length; badge.style.display = 'block'; }
+      else badge.style.display = 'none';
+    }
+    async function openReviewQueue() {
+      document.getElementById('reviewModal').style.display = 'flex';
+      const list = document.getElementById('reviewQueueList');
+      list.innerHTML = '<p class="empty-state">Loading…</p>';
+      await refreshReviewBadge();
+      if (!reviewQueue.length) { list.innerHTML = '<p class="empty-state">No videos waiting for review 🎉</p>'; return; }
+      list.innerHTML = reviewQueue.map(v => `<div class="settings-row" style="cursor:pointer;" onclick="reviewFromQueue('${v.swimmerId}', '${jsStr(v.swimmerName)}')"><div><div style="font-weight:600;">${v.swimmerName}</div><div style="font-size:0.75rem;color:#94a3b8;">${v.stroke} • ${new Date(v.createdAt).toLocaleDateString()}</div></div><span style="color:#22d3ee;font-weight:600;">Review →</span></div>`).join('');
+    }
+    function closeReviewQueue() { document.getElementById('reviewModal').style.display = 'none'; }
+    function reviewFromQueue(swimmerId, swimmerName) {
+      closeReviewQueue();
+      showSection('coach-batches');
+      showCommentSection(swimmerId, swimmerName);
+      setTimeout(() => document.getElementById('swimmerCommentSection')?.scrollIntoView({ behavior: 'smooth' }), 120);
+    }
+
+    // ========== MOVE / REMOVE swimmer ==========
+    function moveSwimmerPrompt(swimmerId, fromBatchId) {
+      const targets = coachBatches.filter(b => b.id !== fromBatchId);
+      if (!targets.length) return alert('Create another batch first to move swimmers between batches.');
+      const menu = targets.map((b, i) => `${i + 1}. ${b.name}`).join('\n');
+      const choice = prompt(`Move to which batch?\n\n${menu}\n\nEnter a number:`);
+      if (choice === null) return;
+      const idx = parseInt(choice, 10) - 1;
+      if (isNaN(idx) || idx < 0 || idx >= targets.length) return alert('Invalid choice.');
+      moveSwimmer(swimmerId, fromBatchId, targets[idx].id);
+    }
+    async function moveSwimmer(swimmerId, fromBatchId, toBatchId) {
+      const res = await fetch('/api/batches/move', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ swimmerId, fromBatchId: fromBatchId || null, toBatchId }) });
+      const data = await res.json().catch(() => ({}));
+      if (data.error) return alert(data.error);
+      loadCoachData();
+    }
+    async function removeFromSquad(swimmerId, name) {
+      if (!confirm(`Remove ${name} from your squad? They'll become unassigned and you'll no longer see their data. (You can re-invite them later.)`)) return;
+      const res = await fetch('/api/requests/unlink', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ swimmerId }) });
+      const data = await res.json().catch(() => ({}));
+      if (data.error) return alert(data.error);
+      loadCoachData();
+    }
+
     function hideCommentSection() {
       document.getElementById("swimmerCommentSection").style.display = "none";
       currentCommentSwimmerId = null;
@@ -1028,6 +1133,7 @@
       document.getElementById('roleChip').style.display = 'none';
       document.getElementById('inviteIcon').style.display = 'none';
       document.getElementById('settingsGear').style.display = 'none';
+      document.getElementById('reviewBell').style.display = 'none';
     }
 
     async function setActiveGoal(goalId) {

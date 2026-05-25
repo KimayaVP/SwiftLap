@@ -1,12 +1,15 @@
 const express = require('express');
 const { supabase } = require('../db');
 const { logError } = require('../lib/tracking');
+const { isSelf, forbidden } = require('../lib/auth');
 
 const router = express.Router();
 
 router.get('/leaderboard/:coachId', async (req, res) => {
   try {
     const coachId = req.params.coachId;
+    // The coach themselves, or one of their swimmers, may view the board.
+    if (!isSelf(req, coachId) && req.user.coach_id !== coachId) return forbidden(res);
     const month = new Date().toISOString().slice(0, 7);
     const prevMonth = new Date(new Date().setMonth(new Date().getMonth() - 1)).toISOString().slice(0, 7);
     const startOfMonth = `${month}-01`, startOfPrev = `${prevMonth}-01`;

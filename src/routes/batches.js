@@ -1,6 +1,7 @@
 const express = require('express');
 const { supabase } = require('../db');
 const { trackEvent } = require('../lib/tracking');
+const { isSelf, isCoach, coachOwnsSwimmer, coachOwnsBatch, canAccessSwimmer, forbidden } = require('../lib/auth');
 
 const router = express.Router();
 
@@ -8,7 +9,9 @@ const router = express.Router();
 
 router.post('/batches/create', async (req, res) => {
   try {
-    const { name, coachId } = req.body;
+    const coachId = req.user.id;
+    const { name } = req.body;
+    if (!isCoach(req)) return forbidden(res);
 
     const { data: batch, error } = await supabase
       .from('coach_batches')
@@ -26,6 +29,7 @@ router.post('/batches/create', async (req, res) => {
 router.post('/batches/add-swimmer', async (req, res) => {
   try {
     const { batchId, swimmerId } = req.body;
+    if (!isCoach(req) || !(await coachOwnsBatch(req.user.id, batchId)) || !(await coachOwnsSwimmer(req.user.id, swimmerId))) return forbidden(res);
 
     const { error } = await supabase
       .from('batch_members')
@@ -43,6 +47,7 @@ router.post('/batches/add-swimmer', async (req, res) => {
 router.post('/batches/remove-swimmer', async (req, res) => {
   try {
     const { batchId, swimmerId } = req.body;
+    if (!isCoach(req) || !(await coachOwnsBatch(req.user.id, batchId))) return forbidden(res);
 
     const { error } = await supabase
       .from('batch_members')
@@ -56,6 +61,24 @@ router.post('/batches/remove-swimmer', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// Move a swimmer from one batch to another in a single step.
+// fromBatchId is optional (an Individual being placed into a batch).
+router.post('/batches/move', async (req, res) => {
+  try {
+    const { swimmerId, fromBatchId, toBatchId } = req.body;
+    if (!swimmerId || !toBatchId) return res.status(400).json({ error: 'swimmerId and toBatchId are required' });
+    if (!isCoach(req) || !(await coachOwnsBatch(req.user.id, toBatchId))) return forbidden(res);
+    if (fromBatchId && !(await coachOwnsBatch(req.user.id, fromBatchId))) return forbidden(res);
+
+    if (fromBatchId) {
+      await supabase.from('batch_members').delete().eq('batch_id', fromBatchId).eq('swimmer_id', swimmerId);
+    }
+    const { error } = await supabase.from('batch_members').insert({ batch_id: toBatchId, swimmer_id: swimmerId });
+    if (error && error.code !== '23505') return res.status(400).json({ error: error.message });
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 // Two-segment paths first
 router.get('/batches/:batchId/leaderboard', async (req, res) => {
   try {
@@ -63,6 +86,10 @@ router.get('/batches/:batchId/leaderboard', async (req, res) => {
       .from('batch_members')
       .select('swimmer_id, profiles(id, name)')
       .eq('batch_id', req.params.batchId);
+
+    // Visible to the batch's coach or any swimmer in the batch.
+    const isMember = (members || []).some(m => m.swimmer_id === req.user.id);
+    if (!isMember && !(await coachOwnsBatch(req.user.id, req.params.batchId))) return forbidden(res);
 
     if (!members?.length) return res.json({ leaderboard: [] });
 
@@ -112,6 +139,7 @@ router.get('/batches/:batchId/leaderboard', async (req, res) => {
 
 router.get('/batches/:batchId/available/:coachId', async (req, res) => {
   try {
+    if (!isSelf(req, req.params.coachId) || !(await coachOwnsBatch(req.user.id, req.params.batchId))) return forbidden(res);
     // Get all coach's swimmers
     const { data: swimmers } = await supabase
       .from('profiles')
@@ -134,6 +162,7 @@ router.get('/batches/:batchId/available/:coachId', async (req, res) => {
 
 router.delete('/batches/:batchId', async (req, res) => {
   try {
+    if (!isCoach(req) || !(await coachOwnsBatch(req.user.id, req.params.batchId))) return forbidden(res);
     const { error } = await supabase
       .from('coach_batches')
       .delete()
@@ -147,6 +176,7 @@ router.delete('/batches/:batchId', async (req, res) => {
 // Batches a swimmer belongs to (read-only, swimmer-facing)
 router.get('/batches/swimmer/:swimmerId', async (req, res) => {
   try {
+    if (!(await canAccessSwimmer(req, req.params.swimmerId))) return forbidden(res);
     const { data: members } = await supabase
       .from('batch_members')
       .select('coach_batches(id, name)')
@@ -164,6 +194,7 @@ router.get('/batches/swimmer/:swimmerId', async (req, res) => {
 // Parameterized route last
 router.get('/batches/:coachId', async (req, res) => {
   try {
+    if (!isSelf(req, req.params.coachId)) return forbidden(res);
     const { data: batches, error } = await supabase
       .from('coach_batches')
       .select('*')

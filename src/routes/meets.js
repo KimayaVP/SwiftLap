@@ -1,6 +1,7 @@
 const express = require('express');
 const { supabase } = require('../db');
 const { trackEvent } = require('../lib/tracking');
+const { isSelf, isCoach, coachOwnsSwimmer, canAccessSwimmer, forbidden } = require('../lib/auth');
 
 const router = express.Router();
 
@@ -8,7 +9,8 @@ const router = express.Router();
 
 router.post('/meets/create', async (req, res) => {
   try {
-    const { name, date, location, swimmerId } = req.body;
+    const swimmerId = req.user.id;
+    const { name, date, location } = req.body;
 
     const { data, error } = await supabase
       .from('meets')
@@ -25,7 +27,8 @@ router.post('/meets/create', async (req, res) => {
 
 router.post('/meets/add-result', async (req, res) => {
   try {
-    const { meetId, swimmerId, stroke, distance, minutes, seconds, place, medal } = req.body;
+    const swimmerId = req.user.id;
+    const { meetId, stroke, distance, minutes, seconds, place, medal } = req.body;
     const timeSeconds = parseInt(minutes) * 60 + parseInt(seconds);
 
     // Check if this is a PB
@@ -81,11 +84,16 @@ router.post('/meets/add-result', async (req, res) => {
 // Coach recommends a meet/race to one or more of their swimmers
 router.post('/meets/recommend', async (req, res) => {
   try {
-    const { coachId, swimmerId, swimmerIds, meetName, meetDate, note } = req.body;
+    const coachId = req.user.id;
+    const { swimmerId, swimmerIds, meetName, meetDate, note } = req.body;
     const ids = Array.isArray(swimmerIds) ? swimmerIds.filter(Boolean) : (swimmerId ? [swimmerId] : []);
-    if (!coachId || !ids.length || !meetName) {
-      return res.status(400).json({ error: 'coachId, at least one swimmer and meetName are required' });
+    if (!ids.length || !meetName) {
+      return res.status(400).json({ error: 'at least one swimmer and meetName are required' });
     }
+    if (!isCoach(req)) return forbidden(res);
+    // Coach may only recommend to swimmers they own.
+    const owned = await Promise.all(ids.map(id => coachOwnsSwimmer(coachId, id)));
+    if (owned.some(ok => !ok)) return forbidden(res);
     const rows = ids.map(id => ({
       coach_id: coachId,
       swimmer_id: id,
@@ -106,6 +114,7 @@ router.post('/meets/recommend', async (req, res) => {
 // Swimmer views meets recommended to them
 router.get('/meets/recommendations/:swimmerId', async (req, res) => {
   try {
+    if (!(await canAccessSwimmer(req, req.params.swimmerId))) return forbidden(res);
     const { data, error } = await supabase
       .from('meet_recommendations')
       .select('*')
@@ -128,10 +137,15 @@ router.get('/meets/recommendations/:swimmerId', async (req, res) => {
 // Swimmer accepts/declines a recommendation
 router.post('/meets/recommendation/respond', async (req, res) => {
   try {
-    const { recommendationId, status, swimmerId } = req.body;
+    const swimmerId = req.user.id;
+    const { recommendationId, status } = req.body;
     if (!['accepted', 'declined'].includes(status)) {
       return res.status(400).json({ error: 'status must be accepted or declined' });
     }
+    // Only respond to a recommendation addressed to you.
+    const { data: rec } = await supabase.from('meet_recommendations').select('swimmer_id').eq('id', recommendationId).single();
+    if (!rec) return res.status(404).json({ error: 'Recommendation not found' });
+    if (!isSelf(req, rec.swimmer_id)) return forbidden(res);
     const { data, error } = await supabase
       .from('meet_recommendations')
       .update({ status })
@@ -171,6 +185,7 @@ router.get('/meets/search', async (req, res) => {
 
 router.get('/meets/pbs/:swimmerId', async (req, res) => {
   try {
+    if (!(await canAccessSwimmer(req, req.params.swimmerId))) return forbidden(res);
     const { data, error } = await supabase
       .from('meet_results')
       .select('*, meets(name, date)')
@@ -185,6 +200,7 @@ router.get('/meets/pbs/:swimmerId', async (req, res) => {
 
 router.get('/meets/:meetId/results/:swimmerId', async (req, res) => {
   try {
+    if (!(await canAccessSwimmer(req, req.params.swimmerId))) return forbidden(res);
     const { data: meet } = await supabase
       .from('meets')
       .select('*')
@@ -206,6 +222,7 @@ router.get('/meets/:meetId/results/:swimmerId', async (req, res) => {
 // Parameterized route last
 router.get('/meets/:swimmerId', async (req, res) => {
   try {
+    if (!(await canAccessSwimmer(req, req.params.swimmerId))) return forbidden(res);
     const { data: results } = await supabase
       .from('meet_results')
       .select('meet_id')

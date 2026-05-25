@@ -4,13 +4,15 @@ const { supabase } = require('../db');
 const { logError, trackEvent } = require('../lib/tracking');
 const { checkAndAwardBadges } = require('../lib/badges');
 const { genFeedback } = require('../lib/feedback');
+const { requireCron, isSelf, isCoach, coachOwnsSwimmer, canAccessSwimmer, forbidden } = require('../lib/auth');
 
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } });
 
 router.post('/video/upload', upload.single('video'), async (req, res) => {
   try {
-    const { swimmerId, stroke } = req.body;
+    const swimmerId = req.user.id;
+    const { stroke } = req.body;
     if (!req.file) return res.status(400).json({ error: 'No video' });
     const fileName = `${swimmerId}/${Date.now()}-${req.file.originalname}`;
     const { error: upErr } = await supabase.storage.from('videos').upload(fileName, req.file.buffer, { contentType: req.file.mimetype });
@@ -30,7 +32,7 @@ router.post('/video/upload', upload.single('video'), async (req, res) => {
 // Cost control: delete uploaded video files older than 14 days. Keeps the
 // feedback text/record — only the heavy file is removed from storage.
 // Wired to a daily GitHub Actions cron.
-router.post('/video/cleanup', async (req, res) => {
+router.post('/video/cleanup', requireCron, async (req, res) => {
   try {
     const cutoff = new Date(Date.now() - 14 * 86400000).toISOString();
     const { data: old } = await supabase
@@ -54,10 +56,15 @@ router.post('/video/cleanup', async (req, res) => {
 // Coach leaves written feedback on a swimmer's uploaded video (Option A review).
 router.post('/video/coach-feedback', async (req, res) => {
   try {
-    const { videoId, coachId, feedback } = req.body;
-    if (!videoId || !coachId || !feedback) {
-      return res.status(400).json({ error: 'videoId, coachId and feedback are required' });
+    const coachId = req.user.id;
+    const { videoId, feedback } = req.body;
+    if (!videoId || !feedback) {
+      return res.status(400).json({ error: 'videoId and feedback are required' });
     }
+    // The video must belong to a swimmer this coach owns.
+    const { data: vid } = await supabase.from('video_feedback').select('swimmer_id').eq('id', videoId).single();
+    if (!vid) return res.status(404).json({ error: 'Video not found' });
+    if (!isCoach(req) || !(await coachOwnsSwimmer(coachId, vid.swimmer_id))) return forbidden(res);
     const { data, error } = await supabase
       .from('video_feedback')
       .update({ coach_feedback: feedback, coach_feedback_at: new Date().toISOString(), coach_id: coachId })
@@ -70,8 +77,34 @@ router.post('/video/coach-feedback', async (req, res) => {
   } catch (e) { await logError(e, { route: 'video-coach-feedback' }); res.status(500).json({ error: e.message }); }
 });
 
+// Coach review queue: clips from this coach's swimmers that still need feedback.
+router.get('/video/pending/:coachId', async (req, res) => {
+  try {
+    if (!isSelf(req, req.params.coachId) || !isCoach(req)) return forbidden(res);
+    const { data: swimmers } = await supabase.from('profiles').select('id, name').eq('coach_id', req.params.coachId);
+    const ids = (swimmers || []).map(s => s.id);
+    if (!ids.length) return res.json({ pending: [] });
+    const { data: vids } = await supabase
+      .from('video_feedback')
+      .select('id, swimmer_id, stroke, created_at')
+      .in('swimmer_id', ids)
+      .is('coach_feedback', null)
+      .order('created_at', { ascending: false });
+    const nameMap = Object.fromEntries((swimmers || []).map(s => [s.id, s.name]));
+    const pending = (vids || []).map(v => ({
+      id: v.id,
+      swimmerId: v.swimmer_id,
+      swimmerName: nameMap[v.swimmer_id] || 'Swimmer',
+      stroke: v.stroke,
+      createdAt: v.created_at,
+    }));
+    res.json({ pending });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 router.get('/video/feedback/:swimmerId', async (req, res) => {
   try {
+    if (!(await canAccessSwimmer(req, req.params.swimmerId))) return forbidden(res);
     const { data, error } = await supabase.from('video_feedback').select('*').eq('swimmer_id', req.params.swimmerId).order('created_at', { ascending: false });
     if (error) return res.status(400).json({ error: error.message });
 

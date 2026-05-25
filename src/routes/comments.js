@@ -1,13 +1,16 @@
 const express = require('express');
 const { supabase } = require('../db');
 const { trackEvent } = require('../lib/tracking');
+const { isCoach, coachOwnsSwimmer, canAccessSwimmer, forbidden } = require('../lib/auth');
 
 const router = express.Router();
 
 // Add comment or reaction
 router.post('/comments/add', async (req, res) => {
   try {
-    const { coachId, swimmerId, timeId, comment, reaction } = req.body;
+    const coachId = req.user.id;
+    const { swimmerId, timeId, comment, reaction } = req.body;
+    if (!isCoach(req) || !(await coachOwnsSwimmer(coachId, swimmerId))) return forbidden(res);
 
     const { data, error } = await supabase
       .from('coach_comments')
@@ -25,6 +28,7 @@ router.post('/comments/add', async (req, res) => {
 // Get comments for a swimmer (swimmer view)
 router.get('/comments/swimmer/:swimmerId', async (req, res) => {
   try {
+    if (!(await canAccessSwimmer(req, req.params.swimmerId))) return forbidden(res);
     const { data, error } = await supabase
       .from('coach_comments')
       .select('*, coach:coach_id(name), time:time_id(stroke, distance, time_seconds, date)')
@@ -40,6 +44,7 @@ router.get('/comments/swimmer/:swimmerId', async (req, res) => {
 // Get recent times for a swimmer (coach view for commenting)
 router.get('/comments/swimmer-times/:swimmerId', async (req, res) => {
   try {
+    if (!(await canAccessSwimmer(req, req.params.swimmerId))) return forbidden(res);
     const { data: times, error } = await supabase
       .from('swim_times')
       .select('*')

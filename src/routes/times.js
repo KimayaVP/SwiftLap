@@ -3,12 +3,14 @@ const { supabase } = require('../db');
 const { logError, trackEvent } = require('../lib/tracking');
 const { validateTimeInput } = require('../lib/utils');
 const { checkAndAwardBadges, updateStreak } = require('../lib/badges');
+const { canAccessSwimmer, forbidden } = require('../lib/auth');
 
 const router = express.Router();
 
 router.post('/times', async (req, res) => {
   try {
-    const { swimmerId, stroke, distance, minutes, seconds } = req.body;
+    const swimmerId = req.user.id;
+    const { stroke, distance, minutes, seconds } = req.body;
     const v = validateTimeInput(stroke, distance, minutes, seconds);
     if (!v.valid) return res.status(400).json({ error: v.errors.join(', ') });
     const today = new Date().toISOString().split('T')[0];
@@ -28,6 +30,7 @@ router.post('/times', async (req, res) => {
 
 router.get('/times/:swimmerId', async (req, res) => {
   try {
+    if (!(await canAccessSwimmer(req, req.params.swimmerId))) return forbidden(res);
     const { data, error } = await supabase.from('swim_times').select('*').eq('swimmer_id', req.params.swimmerId).order('created_at', { ascending: false });
     if (error) return res.status(400).json({ error: error.message });
     res.json({ times: data });

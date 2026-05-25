@@ -2,6 +2,7 @@ const express = require('express');
 const { supabase } = require('../db');
 const { logError, trackEvent } = require('../lib/tracking');
 const { seedDemoData } = require('../lib/seed');
+const { requireCron } = require('../lib/auth');
 
 const router = express.Router();
 
@@ -82,8 +83,8 @@ router.post('/auth/oauth-sync', async (req, res) => {
 // Required by the App Store for apps that offer account creation (5.1.1(v)).
 router.post('/auth/delete-account', async (req, res) => {
   try {
-    const { userId } = req.body;
-    if (!userId) return res.status(400).json({ error: 'Missing userId' });
+    // Always act on the authenticated caller — never a client-supplied id.
+    const userId = req.user.id;
 
     const { data: profile } = await supabase.from('profiles').select('role').eq('id', userId).single();
 
@@ -123,12 +124,13 @@ router.post('/auth/login', async (req, res) => {
 });
 
 router.post('/analytics/track', async (req, res) => {
-  const { userId, eventType, eventData } = req.body;
-  await trackEvent(userId, eventType, eventData);
+  const { eventType, eventData } = req.body;
+  await trackEvent(req.user.id, eventType, eventData);
   res.json({ success: true });
 });
 
-router.get('/analytics/summary', async (req, res) => {
+// Aggregate analytics across all users — server-operator only.
+router.get('/analytics/summary', requireCron, async (req, res) => {
   try {
     const { data: events } = await supabase.from('analytics').select('*').order('created_at', { ascending: false }).limit(100);
     const summary = { totalEvents: events?.length || 0, byType: {}, recentErrors: [] };

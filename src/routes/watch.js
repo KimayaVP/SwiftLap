@@ -1,10 +1,12 @@
 const express = require('express');
 const { supabase } = require('../db');
 const { trackEvent } = require('../lib/tracking');
+const { isSelf, canAccessSwimmer, forbidden } = require('../lib/auth');
 
 const router = express.Router();
 
-// Receive workout from Apple Watch
+// Receive workout from Apple Watch. PUBLIC: the watch has no user session, so it
+// proves linkage via the watch_linked_at check below rather than a Bearer token.
 router.post('/watch/workout', async (req, res) => {
   try {
     const {
@@ -77,6 +79,14 @@ router.post('/watch/workout', async (req, res) => {
 // Delete a watch workout
 router.delete('/watch/workout/:id', async (req, res) => {
   try {
+    const { data: workout } = await supabase
+      .from('watch_workouts')
+      .select('swimmer_id')
+      .eq('id', req.params.id)
+      .single();
+    if (!workout) return res.status(404).json({ error: 'Workout not found' });
+    if (!isSelf(req, workout.swimmer_id)) return forbidden(res);
+
     const { error } = await supabase
       .from('watch_workouts')
       .delete()
@@ -90,6 +100,7 @@ router.delete('/watch/workout/:id', async (req, res) => {
 // Get watch workouts for a swimmer
 router.get('/watch/workouts/:swimmerId', async (req, res) => {
   try {
+    if (!(await canAccessSwimmer(req, req.params.swimmerId))) return forbidden(res);
     const { data, error } = await supabase
       .from('watch_workouts')
       .select('*')
@@ -105,7 +116,8 @@ router.get('/watch/workouts/:swimmerId', async (req, res) => {
 // Link watch to swimmer account
 router.post('/watch/link', async (req, res) => {
   try {
-    const { swimmerId, watchId } = req.body;
+    const swimmerId = req.user.id;
+    const { watchId } = req.body;
 
     const { error } = await supabase
       .from('profiles')
@@ -122,7 +134,7 @@ router.post('/watch/link', async (req, res) => {
 // Unlink watch from swimmer account
 router.post('/watch/unlink', async (req, res) => {
   try {
-    const { swimmerId } = req.body;
+    const swimmerId = req.user.id;
     const { error } = await supabase
       .from('profiles')
       .update({ watch_id: null, watch_linked_at: null })
@@ -136,6 +148,7 @@ router.post('/watch/unlink', async (req, res) => {
 // Watch link status for a swimmer
 router.get('/watch/status/:swimmerId', async (req, res) => {
   try {
+    if (!(await canAccessSwimmer(req, req.params.swimmerId))) return forbidden(res);
     const { data: profile } = await supabase
       .from('profiles')
       .select('watch_linked_at')
@@ -152,7 +165,7 @@ router.get('/watch/status/:swimmerId', async (req, res) => {
 // Generate link code for watch pairing
 router.post('/watch/generate-code', async (req, res) => {
   try {
-    const { swimmerId } = req.body;
+    const swimmerId = req.user.id;
 
     // Generate 6-digit code
     const code = Math.floor(100000 + Math.random() * 900000).toString();

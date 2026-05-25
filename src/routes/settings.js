@@ -1,13 +1,15 @@
 const express = require('express');
 const { supabase } = require('../db');
 const { trackEvent } = require('../lib/tracking');
+const { canAccessSwimmer, forbidden } = require('../lib/auth');
 
 const router = express.Router();
 
 // Update leaderboard visibility setting
 router.post('/settings/leaderboard-visibility', async (req, res) => {
   try {
-    const { swimmerId, showOnLeaderboard } = req.body;
+    const swimmerId = req.user.id;
+    const { showOnLeaderboard } = req.body;
 
     const { error } = await supabase
       .from('profiles')
@@ -24,6 +26,7 @@ router.post('/settings/leaderboard-visibility', async (req, res) => {
 // Get swimmer settings
 router.get('/settings/:swimmerId', async (req, res) => {
   try {
+    if (!(await canAccessSwimmer(req, req.params.swimmerId))) return forbidden(res);
     const { data, error } = await supabase
       .from('profiles')
       .select('show_on_leaderboard')
