@@ -1,5 +1,5 @@
 const express = require('express');
-const { supabase } = require('../db');
+const { supabase, supabaseAuth } = require('../db');
 const { logError, trackEvent } = require('../lib/tracking');
 const { seedDemoData } = require('../lib/seed');
 const { requireCron } = require('../lib/auth');
@@ -16,7 +16,7 @@ router.get('/config', (req, res) => {
 router.post('/auth/signup', async (req, res) => {
   try {
     const { email, password, name, role } = req.body;
-    const { data: authData, error: authError } = await supabase.auth.signUp({ email, password });
+    const { data: authData, error: authError } = await supabaseAuth.auth.signUp({ email, password });
     if (authError) return res.status(400).json({ error: authError.message });
     const { data: profile, error } = await supabase.from('profiles').insert({ id: authData.user.id, email, name, role: role || 'swimmer' }).select().single();
     if (error) return res.status(400).json({ error: error.message });
@@ -115,7 +115,7 @@ router.post('/auth/delete-account', async (req, res) => {
 router.post('/auth/login', async (req, res) => {
   try {
     const { email, password } = req.body;
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    const { data, error } = await supabaseAuth.auth.signInWithPassword({ email, password });
     if (error) return res.status(400).json({ error: error.message });
     const { data: profile } = await supabase.from('profiles').select('*').eq('id', data.user.id).single();
     await trackEvent(profile.id, 'login', { role: profile.role });

@@ -104,6 +104,15 @@ request body) and enforce per-resource ownership with the helpers in
 `lib/auth.js` (`isSelf`, `coachOwnsSwimmer`, `coachOwnsBatch`, `inGroup`,
 `canAccessSwimmer`, `forbidden`).
 
+**Two Supabase clients (`src/db.js`):** `supabase` (service-role key, bypasses
+RLS) for all `.from()`/`.storage`/`.auth.admin`/`auth.getUser(token)` work, and
+`supabaseAuth` (anon key) used **only** for user `signUp`/`signInWithPassword`.
+This matters: calling a session-mutating auth method on the admin client makes
+its later `.from()` calls run as that user under RLS instead of as the service
+role — which previously broke email signup (the `profiles` insert ran as the new
+user and RLS rejected it). Keep sign-in/sign-up on `supabaseAuth`; everything
+else on `supabase`.
+
 - **Public paths** (no token): `/health`, `/config`, `/auth/login`,
   `/auth/signup`, `/auth/oauth-sync`.
 - **Cron/admin** (`requireCron`, header `x-cron-secret` == `CRON_SECRET`):

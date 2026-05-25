@@ -1,5 +1,5 @@
 const express = require('express');
-const { supabase } = require('../db');
+const { supabase, supabaseAuth } = require('../db');
 const { logError, trackEvent } = require('../lib/tracking');
 const { isSelf, isCoach, forbidden } = require('../lib/auth');
 
@@ -10,7 +10,7 @@ router.post('/coach/add-swimmer', async (req, res) => {
     const coachId = req.user.id;
     const { email, password, name } = req.body;
     if (!isCoach(req)) return forbidden(res);
-    const { data: authData, error: authError } = await supabase.auth.signUp({ email, password });
+    const { data: authData, error: authError } = await supabaseAuth.auth.signUp({ email, password });
     if (authError) return res.status(400).json({ error: authError.message });
     const { data: profile, error } = await supabase.from('profiles').insert({ id: authData.user.id, email, name, role: 'swimmer', coach_id: coachId }).select().single();
     if (error) return res.status(400).json({ error: error.message });
