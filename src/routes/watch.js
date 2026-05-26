@@ -1,7 +1,7 @@
 const express = require('express');
 const { supabase } = require('../db');
 const { trackEvent } = require('../lib/tracking');
-const { isSelf, canAccessSwimmer, forbidden } = require('../lib/auth');
+const { isSelf, canAccessSwimmer, forbidden, signWatchToken, verifyWatchToken } = require('../lib/auth');
 
 const router = express.Router();
 
@@ -10,12 +10,17 @@ const router = express.Router();
 router.post('/watch/workout', async (req, res) => {
   try {
     const {
-      swimmerId, duration, distance, laps, strokeCount,
+      duration, distance, laps, strokeCount,
       avgHeartRate, calories, lapTimes, lapStrokes,
       fatigueLevel, poolLength, date, source
     } = req.body;
 
-    if (!swimmerId) return res.status(400).json({ error: 'Missing swimmerId' });
+    // Authenticate the device via its signed token; derive the swimmer from it
+    // (never trust a client-supplied id).
+    const swimmerId = verifyWatchToken(req.headers['x-watch-token'] || req.body.watchToken);
+    if (!swimmerId) {
+      return res.status(401).json({ error: 'Watch not authenticated. Open SwiftLap and enter a new 6-digit code to re-link.' });
+    }
 
     // Reject syncs from a watch that has been unlinked from this account.
     // Re-linking (via a fresh 6-digit code) sets watch_linked_at again.
@@ -213,7 +218,8 @@ router.post('/watch/verify-code', async (req, res) => {
       .update({ watch_linked_at: new Date().toISOString() })
       .eq('id', data.swimmer_id);
 
-    res.json({ swimmerId: data.swimmer_id });
+    // Hand the device a signed token to authenticate future workout syncs.
+    res.json({ swimmerId: data.swimmer_id, watchToken: signWatchToken(data.swimmer_id) });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 

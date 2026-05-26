@@ -1,3 +1,4 @@
+const crypto = require('crypto');
 const { supabase } = require('../db');
 
 // Paths (relative to the /api mount) that do NOT require a logged-in user.
@@ -109,6 +110,33 @@ function forbidden(res) {
   return res.status(403).json({ error: 'Not authorized' });
 }
 
+// MARK: per-device watch tokens
+// The Apple Watch has no user login — it pairs via a 6-digit code. On a
+// successful pair we hand it an HMAC-signed token tying the device to a
+// swimmer; it presents this on every workout sync so we can authenticate the
+// device (and derive the swimmer) without trusting a client-supplied id.
+// Stateless (no DB column): the signature is verified, and unlink still
+// revokes because /watch/workout also checks profiles.watch_linked_at.
+const watchSecret = () => process.env.WATCH_TOKEN_SECRET || process.env.SUPABASE_SERVICE_ROLE_KEY || 'swiftlap-dev-secret';
+
+function signWatchToken(swimmerId) {
+  const sig = crypto.createHmac('sha256', watchSecret()).update(String(swimmerId)).digest('hex');
+  return `${swimmerId}.${sig}`;
+}
+
+function verifyWatchToken(token) {
+  if (!token || typeof token !== 'string') return null;
+  const dot = token.lastIndexOf('.');
+  if (dot < 1) return null;
+  const swimmerId = token.slice(0, dot);
+  const sig = token.slice(dot + 1);
+  const expected = crypto.createHmac('sha256', watchSecret()).update(swimmerId).digest('hex');
+  const a = Buffer.from(sig);
+  const b = Buffer.from(expected);
+  if (a.length !== b.length) return null;
+  try { return crypto.timingSafeEqual(a, b) ? swimmerId : null; } catch { return null; }
+}
+
 module.exports = {
   authGate,
   requireCron,
@@ -119,4 +147,6 @@ module.exports = {
   inGroup,
   canAccessSwimmer,
   forbidden,
+  signWatchToken,
+  verifyWatchToken,
 };
