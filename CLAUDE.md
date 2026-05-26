@@ -117,20 +117,24 @@ else on `supabase`.
   `/auth/signup`, `/auth/oauth-sync`.
 - **Cron/admin** (`requireCron`, header `x-cron-secret` == `CRON_SECRET`):
   `/video/cleanup`, `/analytics/summary`.
-- **Watch device** (no user session — proves linkage via 6-digit code +
-  `watch_linked_at`): `/watch/verify-code`, `/watch/workout`. Closing this fully
-  needs per-device tokens — a known follow-up.
+- **Watch device** (no user session): pairs via a 6-digit code, then authenticates
+  with a per-device **HMAC token**. `/watch/verify-code` returns the token
+  (`signWatchToken`); `/watch/workout` requires it (`verifyWatchToken` — header
+  `x-watch-token` or body `watchToken`), derives the swimmer from it, and still
+  checks `watch_linked_at` so unlinking revokes. Token secret: `WATCH_TOKEN_SECRET`
+  (optional; falls back to the service-role key). These two endpoints stay public.
 - Clients attach the token: web wraps `fetch` (`public/app.js`), iOS sets
   `APIClient.tokenProvider` (`SwiftLapApp`). Both let the Supabase SDK refresh it.
 
 **Required env before deploy:** set `CRON_SECRET` in Render **and** as a GitHub
 Actions secret (used by `.github/workflows/video-cleanup.yml`), or video cleanup
-+ the analytics summary will 401.
++ the analytics summary will 401. (`WATCH_TOKEN_SECRET` is optional.)
 
 **Top open priorities (pick up here):**
 1. **Monetization** (free login + subscription): a `subscription_status` on profiles + entitlement checks on gated endpoints (+ StoreKit on iOS, Stripe on web). The auth foundation above is the prerequisite.
 2. Move video blobs off Supabase Storage to **Cloudflare R2** (free egress) before scale.
-3. **Stroke Analysis** video feedback is a **stub** (`lib/feedback.js`), labeled Beta in the UIs (renamed from "AI feedback" 2026-05-24) — make it real (on-device Option D, or a model) or keep it clearly a demo for App Store.
-4. Harden the **watch device** endpoints with per-device tokens (see above).
+3. **Stroke Analysis** video feedback is a **stub** (`lib/feedback.js`), labeled DEMO in the UIs (renamed from "AI feedback" 2026-05-24) — make it real (on-device Option D, or a model) when ready.
+
+Done since: per-device watch tokens (2026-05-25); account-deletion completeness (2026-05-25).
 
 Manual Supabase steps already done 2026-05-22: ran `db/migrations/2026-05-22-video-coach-feedback.sql`; set the `videos` storage bucket to **private**.
