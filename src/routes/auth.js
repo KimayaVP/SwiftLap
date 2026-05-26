@@ -88,26 +88,63 @@ router.post('/auth/delete-account', async (req, res) => {
 
     const { data: profile } = await supabase.from('profiles').select('role').eq('id', userId).single();
 
-    // Personal data keyed by swimmer_id (best-effort per table).
-    const swimmerTables = ['swim_times', 'goals', 'watch_workouts', 'meet_results', 'video_feedback', 'achievements', 'streaks', 'training_plans', 'batch_members', 'meet_recommendations', 'coach_routines'];
+    // Order matters: every row that references profiles(id) must be cleared
+    // before the profile itself, or the final delete fails the FK check.
+
+    // active_goal_id -> goals(id): null it first so the goals delete below works.
+    await supabase.from('profiles').update({ active_goal_id: null }).eq('id', userId);
+
+    // Personal data keyed by swimmer_id.
+    const swimmerTables = ['swim_times', 'goals', 'watch_workouts', 'watch_link_codes', 'meet_results', 'video_feedback', 'achievements', 'streaks', 'training_plans', 'batch_members', 'meet_recommendations', 'coach_routines', 'group_members', 'coach_comments', 'coach_badges'];
     for (const t of swimmerTables) {
       await supabase.from(t).delete().eq('swimmer_id', userId);
     }
+
+    // Rows where this user is the coach.
+    for (const t of ['video_feedback', 'coach_comments', 'coach_badges', 'meet_recommendations', 'coach_routines']) {
+      await supabase.from(t).delete().eq('coach_id', userId);
+    }
+
+    // Analytics events (FK: analytics.user_id -> profiles.id) and coach links.
+    await supabase.from('analytics').delete().eq('user_id', userId);
     await supabase.from('coach_requests').delete().or(`from_id.eq.${userId},to_id.eq.${userId}`);
-    await supabase.from('comments').delete().or(`swimmer_id.eq.${userId},coach_id.eq.${userId}`);
+
+    // Groups this user created → remove memberships, then the groups.
+    const { data: ownedGroups } = await supabase.from('swimmer_groups').select('id').eq('created_by', userId);
+    if (ownedGroups?.length) {
+      await supabase.from('group_members').delete().in('group_id', ownedGroups.map(g => g.id));
+      await supabase.from('swimmer_groups').delete().eq('created_by', userId);
+    }
+
+    // Meets this user created → remove their results, then the meets.
+    const { data: ownedMeets } = await supabase.from('meets').select('id').eq('created_by', userId);
+    if (ownedMeets?.length) {
+      await supabase.from('meet_results').delete().in('meet_id', ownedMeets.map(m => m.id));
+      await supabase.from('meets').delete().eq('created_by', userId);
+    }
 
     if (profile?.role === 'coach') {
       await supabase.from('profiles').update({ coach_id: null }).eq('coach_id', userId);
-      await supabase.from('coach_batches').delete().eq('coach_id', userId);
-      await supabase.from('meet_recommendations').delete().eq('coach_id', userId);
-      await supabase.from('coach_routines').delete().eq('coach_id', userId);
+      const { data: batches } = await supabase.from('coach_batches').select('id').eq('coach_id', userId);
+      if (batches?.length) {
+        await supabase.from('batch_members').delete().in('batch_id', batches.map(b => b.id));
+        await supabase.from('coach_batches').delete().eq('coach_id', userId);
+      }
     }
 
-    await supabase.from('profiles').delete().eq('id', userId);
+    // Finally remove the profile — and verify it actually went (FK violations
+    // here used to be swallowed, leaving the name/email behind after "deletion").
+    const { error: profErr } = await supabase.from('profiles').delete().eq('id', userId);
+    if (profErr) {
+      await logError(new Error(profErr.message), { route: 'delete-account', stage: 'profile-delete', userId });
+      return res.status(400).json({ error: 'Could not fully delete account. Please contact support.' });
+    }
+
     const { error: delErr } = await supabase.auth.admin.deleteUser(userId);
     if (delErr) return res.status(400).json({ error: delErr.message });
 
-    await trackEvent(userId, 'account_deleted', {});
+    // Record the deletion with no user_id (the profile is gone).
+    await trackEvent(null, 'account_deleted', { deletedUserId: userId });
     res.json({ success: true });
   } catch (e) { await logError(e, { route: 'delete-account' }); res.status(500).json({ error: e.message }); }
 });
