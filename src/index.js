@@ -36,6 +36,7 @@ app.use('/api', require('./routes/settings'));
 app.use('/api', require('./routes/comments'));
 app.use('/api', require('./routes/coachBadges'));
 app.use('/api', require('./routes/meets'));
+app.use('/api', require('./routes/notifications'));
 app.use('/api', require('./routes/watch'));
 
 app.listen(PORT, () => console.log(`\n🏊 SwiftLapLogic at http://localhost:${PORT}\n`));
