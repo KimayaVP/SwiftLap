@@ -4,6 +4,7 @@ const { supabase } = require('../db');
 const { logError, trackEvent } = require('../lib/tracking');
 const { checkAndAwardBadges } = require('../lib/badges');
 const { genFeedback } = require('../lib/feedback');
+const { createNotification } = require('../lib/notifications');
 const { requireCron, isSelf, isCoach, coachOwnsSwimmer, canAccessSwimmer, forbidden } = require('../lib/auth');
 
 const router = express.Router();
@@ -24,6 +25,16 @@ router.post('/video/upload', upload.single('video'), async (req, res) => {
     if (error) return res.status(400).json({ error: error.message });
 
     const newBadges = await checkAndAwardBadges(swimmerId);
+
+    // Notify the swimmer's coach there's a new clip awaiting review.
+    const { data: prof } = await supabase.from('profiles').select('coach_id, name').eq('id', swimmerId).single();
+    if (prof?.coach_id) {
+      await createNotification(prof.coach_id, 'video_review',
+        '🎥 New video to review',
+        `${prof.name || 'A swimmer'} uploaded a ${stroke || ''} clip.`.replace(/\s+/g, ' ').trim(),
+        { swimmerId, videoId: data.id });
+    }
+
     await trackEvent(swimmerId, 'video_uploaded', { stroke });
     res.json({ success: true, feedback: data, newBadges });
   } catch (e) { await logError(e, { route: 'video-upload' }); res.status(500).json({ error: e.message }); }

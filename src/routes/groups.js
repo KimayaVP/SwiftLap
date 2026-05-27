@@ -2,6 +2,7 @@ const express = require('express');
 const { supabase } = require('../db');
 const { trackEvent } = require('../lib/tracking');
 const { generateInviteCode } = require('../lib/utils');
+const { computeGroupLeaderboard } = require('../lib/groupLeaderboard');
 const { isSelf, inGroup, forbidden } = require('../lib/auth');
 
 const router = express.Router();
@@ -87,85 +88,7 @@ router.post('/groups/leave', async (req, res) => {
 router.get('/groups/:groupId/leaderboard', async (req, res) => {
   try {
     if (!(await inGroup(req.user.id, req.params.groupId))) return forbidden(res);
-    // Get all members
-    const { data: members } = await supabase
-      .from('group_members')
-      .select('swimmer_id, profiles(id, name)')
-      .eq('group_id', req.params.groupId);
-
-    if (!members?.length) return res.json({ leaderboard: [] });
-
-    const d30 = new Date(Date.now() - 30 * 86400000).toISOString().split('T')[0];
-    const leaderboard = [];
-
-    for (const m of members) {
-      const swimmerId = m.swimmer_id;
-      const name = m.profiles.name;
-
-      // Get times
-      const { data: times } = await supabase
-        .from('swim_times')
-        .select('*')
-        .eq('swimmer_id', swimmerId);
-
-      // Get goals
-      const { data: goals } = await supabase
-        .from('goals')
-        .select('*')
-        .eq('swimmer_id', swimmerId);
-
-      // Get streak
-      const { data: streak } = await supabase
-        .from('streaks')
-        .select('current_streak')
-        .eq('swimmer_id', swimmerId)
-        .single();
-
-      // Calculate stats
-      const recentTimes = times?.filter(t => t.date >= d30) || [];
-      const sessionsThisMonth = recentTimes.length;
-
-      // Calculate improvement
-      let improvementPct = 0;
-      if (times?.length >= 2) {
-        const sorted = [...times].sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
-        const first = sorted[0].time_seconds;
-        const last = sorted[sorted.length - 1].time_seconds;
-        improvementPct = Math.round(((first - last) / first) * 100);
-      }
-
-      // Goal completion
-      let goalsAchieved = 0;
-      for (const g of goals || []) {
-        const best = times?.filter(t => t.stroke === g.stroke && t.distance === g.distance)
-          .reduce((min, t) => Math.min(min, t.time_seconds), Infinity);
-        if (best <= g.target_seconds) goalsAchieved++;
-      }
-      const goalRate = goals?.length ? Math.round((goalsAchieved / goals.length) * 100) : 0;
-
-      // Composite score
-      const compositeScore = Math.round(
-        (improvementPct * 0.4) +
-        (goalRate * 0.3) +
-        (Math.min(100, sessionsThisMonth * 10) * 0.2) +
-        ((streak?.current_streak || 0) * 2 * 0.1)
-      );
-
-      leaderboard.push({
-        id: swimmerId,
-        name,
-        improvementPct,
-        goalRate,
-        sessionsThisMonth,
-        streak: streak?.current_streak || 0,
-        compositeScore
-      });
-    }
-
-    // Sort by composite score
-    leaderboard.sort((a, b) => b.compositeScore - a.compositeScore);
-    leaderboard.forEach((s, i) => s.rank = i + 1);
-
+    const leaderboard = await computeGroupLeaderboard(req.params.groupId);
     res.json({ leaderboard });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });

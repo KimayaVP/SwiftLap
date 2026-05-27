@@ -159,6 +159,8 @@
       document.getElementById('dashboard').classList.add('active');
       showWelcome(currentUser.name, currentUser.role);
       loadPendingRequests();
+      document.getElementById('notifBell').style.display = 'block';
+      refreshNotifBadge();
       if (currentUser.role === 'coach') {
         document.getElementById('coachSection').style.display = 'block';
         document.getElementById('inviteIcon').style.display = 'block';
@@ -821,6 +823,40 @@
       setTimeout(() => document.getElementById('swimmerCommentSection')?.scrollIntoView({ behavior: 'smooth' }), 120);
     }
 
+    // ========== NOTIFICATIONS (in-app inbox) ==========
+    async function refreshNotifBadge() {
+      let unread = 0;
+      try {
+        const res = await fetch(`/api/notifications/${currentUser.id}`);
+        const data = await res.json().catch(() => ({}));
+        unread = data.unread || 0;
+      } catch (e) {}
+      const badge = document.getElementById('notifBadge');
+      if (!badge) return;
+      if (unread) { badge.textContent = unread > 9 ? '9+' : unread; badge.style.display = 'block'; }
+      else badge.style.display = 'none';
+    }
+    async function openNotifications() {
+      document.getElementById('notifModal').style.display = 'flex';
+      const list = document.getElementById('notifList');
+      list.innerHTML = '<p class="empty-state">Loading…</p>';
+      let items = [];
+      try {
+        const res = await fetch(`/api/notifications/${currentUser.id}`);
+        const data = await res.json().catch(() => ({}));
+        items = data.notifications || [];
+      } catch (e) {}
+      if (!items.length) {
+        list.innerHTML = '<p class="empty-state">No notifications yet</p>';
+      } else {
+        list.innerHTML = items.map(n => `<div class="settings-row" style="${n.read_at ? '' : 'background:rgba(34,211,238,0.08);'}"><div><div style="font-weight:600;">${n.title}</div>${n.body ? `<div style="font-size:0.8rem;color:#cbd5e1;">${n.body}</div>` : ''}<div style="font-size:0.7rem;color:#94a3b8;">${new Date(n.created_at).toLocaleDateString()}</div></div></div>`).join('');
+      }
+      // Mark everything read now that the inbox is open.
+      try { await fetch('/api/notifications/read', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}) }); } catch (e) {}
+      refreshNotifBadge();
+    }
+    function closeNotifications() { document.getElementById('notifModal').style.display = 'none'; }
+
     // ========== MOVE / REMOVE swimmer ==========
     function moveSwimmerPrompt(swimmerId, fromBatchId) {
       const targets = coachBatches.filter(b => b.id !== fromBatchId);
@@ -938,24 +974,80 @@
 
     // ========== MEET RESULTS TRACKER ==========
     let currentMeetId = null;
+    let meetFilter = "all";          // all | upcoming | over
+    let newMeetEvents = [];          // events being added on the create form
+
+    function meetIsUpcoming() {
+      const d = document.getElementById("meetDate").value;
+      const today = new Date().toISOString().split("T")[0];
+      return d && d >= today;
+    }
+    function setMeetFilter(f, btn) {
+      meetFilter = f;
+      document.querySelectorAll("#meetsFilter button").forEach(b => b.classList.remove("btn-primary"));
+      if (btn) btn.classList.add("btn-primary");
+      loadMeets();
+    }
     async function loadMeets() {
       const res = await fetch(`/api/meets/${currentUser.id}`);
       const data = await res.json();
       const container = document.getElementById("meetsList");
-      if (!data.meets?.length) { container.innerHTML = "<p class=\"empty-state\">No meets yet</p>"; return; }
-      container.innerHTML = data.meets.map(m => `<div style="background:rgba(255,255,255,0.03);padding:12px;border-radius:10px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;"><div><div style="font-weight:600;">${m.name}</div><div style="font-size:0.75rem;color:#94a3b8;">${m.date} • ${m.resultCount} races</div></div><button class="btn btn-primary btn-small" onclick="viewMeetDetail('${m.id}', '${m.name}')">View</button></div>`).join("");
+      let meets = data.meets || [];
+      if (meetFilter !== "all") meets = meets.filter(m => m.status === meetFilter);
+      if (!meets.length) { container.innerHTML = `<p class="empty-state">No ${meetFilter === "all" ? "" : meetFilter + " "}meets yet</p>`; return; }
+      container.innerHTML = meets.map(m => {
+        const pill = m.status === "upcoming"
+          ? '<span style="background:#0ea5e9;color:#fff;padding:2px 8px;border-radius:999px;font-size:0.7rem;">Upcoming</span>'
+          : '<span style="background:#475569;color:#fff;padding:2px 8px;border-radius:999px;font-size:0.7rem;">Over</span>';
+        const sub = m.status === "upcoming"
+          ? `${m.date} • ${m.eventCount} event${m.eventCount === 1 ? "" : "s"}`
+          : `${m.date} • ${m.resultCount}/${m.eventCount} logged`;
+        const needLog = m.status === "over" && m.pendingCount > 0 ? ` • <span style="color:#f59e0b;">${m.pendingCount} to log</span>` : "";
+        return `<div style="background:rgba(255,255,255,0.03);padding:12px;border-radius:10px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;"><div><div style="font-weight:600;">${m.name} ${pill}</div><div style="font-size:0.75rem;color:#94a3b8;">${sub}${needLog}</div></div><button class="btn btn-primary btn-small" onclick="viewMeetDetail('${m.id}', '${(m.name || "").replace(/'/g, "\\'")}')">View</button></div>`;
+      }).join("");
     }
-    function showAddMeet() { document.getElementById("addMeetSection").style.display = "block"; }
+    function showAddMeet() { newMeetEvents = []; document.getElementById("addMeetSection").style.display = "block"; renderNewMeetEvents(); }
     function hideAddMeet() { document.getElementById("addMeetSection").style.display = "none"; }
+    function renderNewMeetEvents() {
+      const up = meetIsUpcoming();
+      const lbl = document.getElementById("evTimeLabel");
+      const hint = document.getElementById("meetEventsHint");
+      if (lbl) lbl.textContent = up ? "Expected time" : "Your time";
+      if (hint) hint.textContent = up
+        ? "Upcoming meet — add events with your expected/goal time (optional)."
+        : "Past meet — add events with the time you swam.";
+      const c = document.getElementById("newMeetEventsList");
+      if (!c) return;
+      c.innerHTML = newMeetEvents.map((e, i) => {
+        const t = (e.min || e.sec) ? ` • ${up ? "exp " : ""}${formatTime((parseInt(e.min || 0) || 0) * 60 + (parseFloat(e.sec || 0) || 0))}` : "";
+        return `<div style="display:flex;justify-content:space-between;align-items:center;background:rgba(255,255,255,0.03);padding:8px;border-radius:8px;margin-bottom:6px;"><span>${e.stroke} ${e.distance}m${t}</span><button class="btn btn-secondary btn-small" onclick="removeNewMeetEvent(${i})">✕</button></div>`;
+      }).join("");
+    }
+    function addNewMeetEvent() {
+      newMeetEvents.push({
+        stroke: document.getElementById("evStroke").value,
+        distance: document.getElementById("evDistance").value,
+        min: document.getElementById("evMin").value,
+        sec: document.getElementById("evSec").value,
+      });
+      document.getElementById("evMin").value = "";
+      document.getElementById("evSec").value = "";
+      renderNewMeetEvents();
+    }
+    function removeNewMeetEvent(i) { newMeetEvents.splice(i, 1); renderNewMeetEvents(); }
     async function createMeet() {
       const name = document.getElementById("meetName").value;
       const date = document.getElementById("meetDate").value;
       const location = document.getElementById("meetLocation").value;
       if (!name || !date) return alert("Enter meet name and date");
-      const res = await fetch("/api/meets/create", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, date, location, swimmerId: currentUser.id }) });
+      const up = meetIsUpcoming();
+      const events = newMeetEvents.map(e => up
+        ? { stroke: e.stroke, distance: e.distance, expectedMinutes: e.min, expectedSeconds: e.sec }
+        : { stroke: e.stroke, distance: e.distance, minutes: e.min, seconds: e.sec });
+      const res = await fetch("/api/meets/create", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, date, location, events, swimmerId: currentUser.id }) });
       const data = await res.json();
       if (data.error) alert(data.error);
-      else { hideAddMeet(); viewMeetDetail(data.meet.id, data.meet.name); loadMeets(); }
+      else { hideAddMeet(); document.getElementById("meetName").value = ""; document.getElementById("meetLocation").value = ""; loadMeets(); viewMeetDetail(data.meet.id, data.meet.name); }
     }
     async function viewMeetDetail(meetId, meetName) {
       currentMeetId = meetId;
@@ -969,8 +1061,42 @@
       const res = await fetch(`/api/meets/${meetId}/results/${currentUser.id}`);
       const data = await res.json();
       const container = document.getElementById("meetResultsList");
-      if (!data.results?.length) { container.innerHTML = "<p class=\"empty-state\">No races logged yet</p>"; return; }
-      container.innerHTML = data.results.map(r => `<div style="background:rgba(255,255,255,0.03);padding:12px;border-radius:10px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;"><div><div style="font-weight:600;">${r.stroke} ${r.distance}m ${r.medal ? (r.medal === "gold" ? "🥇" : r.medal === "silver" ? "🥈" : "🥉") : ""}</div><div style="font-size:0.75rem;color:#94a3b8;">${r.place ? "Place: " + r.place : ""} ${r.is_pb ? "⭐ PB!" : ""}</div></div><div style="font-size:1.2rem;font-weight:700;color:#0ea5e9;">${formatTime(r.time_seconds)}</div></div>`).join("");
+      const results = data.results || [];
+      if (!results.length) { container.innerHTML = "<p class=\"empty-state\">No events yet</p>"; return; }
+      container.innerHTML = results.map(r => {
+        const medal = r.medal ? (r.medal === "gold" ? "🥇" : r.medal === "silver" ? "🥈" : "🥉") : "";
+        if (r.time_seconds == null) {
+          const exp = r.expected_seconds != null ? `Expected: ${formatTime(r.expected_seconds)}` : "No expected time";
+          return `<div style="background:rgba(255,255,255,0.03);padding:12px;border-radius:10px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;"><div><div style="font-weight:600;">${r.stroke} ${r.distance}m</div><div style="font-size:0.75rem;color:#94a3b8;">${exp}</div></div><button class="btn btn-success btn-small" onclick="logMeetResult('${r.id}')">Log time</button></div>`;
+        }
+        const expLine = r.expected_seconds != null ? ` (exp ${formatTime(r.expected_seconds)})` : "";
+        return `<div style="background:rgba(255,255,255,0.03);padding:12px;border-radius:10px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;"><div><div style="font-weight:600;">${r.stroke} ${r.distance}m ${medal}</div><div style="font-size:0.75rem;color:#94a3b8;">${r.place ? "Place: " + r.place : ""} ${r.is_pb ? "⭐ PB!" : ""}${expLine}</div></div><div style="font-size:1.2rem;font-weight:700;color:#0ea5e9;">${formatTime(r.time_seconds)}</div></div>`;
+      }).join("");
+    }
+    function parseTimeInput(str) {
+      str = (str || "").trim();
+      if (str.includes(":")) {
+        const [m, s] = str.split(":");
+        const mn = parseInt(m), sc = parseFloat(s);
+        if (isNaN(mn) || isNaN(sc)) return null;
+        return { minutes: mn, seconds: sc };
+      }
+      const sc = parseFloat(str);
+      if (isNaN(sc)) return null;
+      return { minutes: Math.floor(sc / 60), seconds: +(sc % 60).toFixed(2) };
+    }
+    async function logMeetResult(resultId) {
+      const input = prompt("Enter your time (e.g. 1:02.45 or 58.3)");
+      if (!input) return;
+      const parsed = parseTimeInput(input);
+      if (!parsed) return alert("Couldn't read that time — use mm:ss or seconds.");
+      const res = await fetch("/api/meets/log-result", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ resultId, minutes: parsed.minutes, seconds: parsed.seconds, swimmerId: currentUser.id }) });
+      const data = await res.json();
+      if (data.error) return alert(data.error);
+      if (data.isPB) alert("🎉 New Personal Best!");
+      loadMeetResults(currentMeetId); loadMeets();
+      if (typeof loadTimes === "function") loadTimes();
+      if (typeof loadGoals === "function") loadGoals();
     }
     async function addRaceResult() {
       if (!currentMeetId) return alert("No meet selected");
@@ -1134,6 +1260,7 @@
       document.getElementById('inviteIcon').style.display = 'none';
       document.getElementById('settingsGear').style.display = 'none';
       document.getElementById('reviewBell').style.display = 'none';
+      document.getElementById('notifBell').style.display = 'none';
     }
 
     async function setActiveGoal(goalId) {

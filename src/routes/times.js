@@ -3,6 +3,7 @@ const { supabase } = require('../db');
 const { logError, trackEvent } = require('../lib/tracking');
 const { validateTimeInput } = require('../lib/utils');
 const { checkAndAwardBadges, updateStreak } = require('../lib/badges');
+const { notifyGroupRankChanges } = require('../lib/groupLeaderboard');
 const { canAccessSwimmer, forbidden } = require('../lib/auth');
 
 const router = express.Router();
@@ -24,6 +25,7 @@ router.post('/times', async (req, res) => {
     const newBadges = await checkAndAwardBadges(swimmerId);
 
     await trackEvent(swimmerId, 'time_logged', { stroke, distance, time: v.totalSeconds });
+    await notifyGroupRankChanges(swimmerId);  // overtake notifications in friend groups
     res.json({ success: true, time: data, streak: streakResult, newBadges });
   } catch (e) { await logError(e, { route: 'times-post' }); res.status(500).json({ error: e.message }); }
 });

@@ -93,6 +93,13 @@ Recently added endpoints (all under `/api`):
 - `video.js`: videos now stored as **paths + signed URLs** (private bucket); `/video/coach-feedback` (coach reviews a clip); `/video/cleanup` (deletes clips >14 days, run by `.github/workflows/video-cleanup.yml`); `/video/pending/:coachId` (coach review queue — clips from the coach's swimmers with no coach feedback yet; powers the review-bell notifications on web + iOS).
 - `batches.js`: `/batches/move` (move a swimmer between batches in one step — remove from `fromBatchId` + add to `toBatchId`; `fromBatchId` optional).
 - `requests.js`: `/requests/send` rejects `swimmer_to_coach` (coach-only linking); `/requests/invite` emails non-users a signup link; `/requests/unlink` removes a swimmer from a coach's roster (`coach_id → null`) — callable by the swimmer or their coach.
+- `meets.js` (reworked 2026-05-27 — **multi-event meets, upcoming/over**): a `meet_results` row is now one *event* of a meet, carrying an optional `expected_seconds` (upcoming) and a now-nullable `time_seconds` (actual). `/meets/create` accepts an `events[]` array (each with expected and/or actual times). New `/meets/log-result` fills in the actual time for an existing event (→ `swim_times` + PB-check). `/meets/:swimmerId` now lists **all** meets (upcoming + over) with a derived `status`, `eventCount`, `pendingCount`. Logging any race time also calls `notifyGroupRankChanges`.
+- `notifications.js` + `lib/notifications.js` (2026-05-27 — **in-app inbox**): `GET /notifications/:userId` (own only) returns `{ notifications, unread }`; `POST /notifications/read` marks one (`body.id`) or all read. `createNotification(userId, type, title, body, data)` is the helper. Event hooks: a video upload notifies the swimmer's **coach** (`video_review`); logging a race time triggers `notifyGroupRankChanges` (`group_rank` — "moved up" / "overtaken" for friend-group leaderboard changes). **Real push/APNs is deferred until the paid Apple org team exists** (needs device-token storage + a sender); the inbox is the push-ready foundation.
+- `lib/groupLeaderboard.js` (2026-05-27): `computeGroupLeaderboard(groupId)` (extracted from `groups.js`, now shared) + `notifyGroupRankChanges(swimmerId)` which diffs each member's rank vs `group_members.last_rank` and notifies on change.
+
+### Pending manual Supabase migrations (run in SQL editor before deploy)
+- `db/migrations/2026-05-27-meet-events.sql` — adds `meet_results.expected_seconds`, makes `time_seconds` nullable, adds `result_logged_at`.
+- `db/migrations/2026-05-27-notifications.sql` — creates `notifications`, adds `group_members.last_rank`.
 
 ## API authentication (enforced as of 2026-05-24)
 
