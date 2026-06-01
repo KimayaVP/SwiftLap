@@ -52,6 +52,40 @@ router.post('/goals/assign', async (req, res) => {
   } catch (e) { await logError(e, { route: 'goals-assign' }); res.status(500).json({ error: e.message }); }
 });
 
+// Coach lists every goal they've assigned (source='coach') across their roster,
+// each with the swimmer's name and current status vs their best logged time.
+router.get('/goals/assigned/:coachId', async (req, res) => {
+  try {
+    const coachId = req.params.coachId;
+    if (!isCoach(req) || req.user.id !== coachId) return forbidden(res);
+
+    const { data: swimmers } = await supabase
+      .from('profiles').select('id, name').eq('coach_id', coachId).eq('role', 'swimmer');
+    const swimmerIds = (swimmers || []).map(s => s.id);
+    if (!swimmerIds.length) return res.json({ goals: [] });
+    const nameMap = Object.fromEntries((swimmers || []).map(s => [s.id, s.name]));
+
+    const { data: goals } = await supabase
+      .from('goals').select('*')
+      .in('swimmer_id', swimmerIds)
+      .eq('source', 'coach')
+      .order('created_at', { ascending: false });
+    if (!goals?.length) return res.json({ goals: [] });
+
+    const { data: times } = await supabase
+      .from('swim_times').select('swimmer_id, stroke, distance, time_seconds')
+      .in('swimmer_id', swimmerIds);
+
+    const result = (goals || []).map(g => {
+      const relevant = (times || []).filter(t => t.swimmer_id === g.swimmer_id && t.stroke === g.stroke && t.distance === g.distance);
+      const bestTime = relevant.length ? Math.min(...relevant.map(t => t.time_seconds)) : null;
+      const status = bestTime === null ? 'no_data' : (bestTime <= g.target_seconds ? 'ahead' : 'behind');
+      return { ...g, swimmerName: nameMap[g.swimmer_id] || 'Swimmer', bestTime, status };
+    });
+    res.json({ goals: result });
+  } catch (e) { await logError(e, { route: 'goals-assigned' }); res.status(500).json({ error: e.message }); }
+});
+
 router.post('/goals/set-active', async (req, res) => {
   try {
     const swimmerId = req.user.id;

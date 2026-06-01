@@ -103,6 +103,14 @@ Recently added endpoints (all under `/api`):
 - `db/migrations/2026-05-27-notifications.sql` — creates `notifications`, adds `group_members.last_rank`.
 - `db/migrations/2026-06-01-device-tokens.sql` — creates `device_tokens` (APNs push). ✅ Run 2026-06-01 (RLS enabled; backend uses the service-role key so RLS doesn't affect it).
 
+## Pre-App-Store polish pass (2026-06-01)
+
+UX/feedback pass across **backend + web + iOS** (no DB migration — all new endpoints reuse existing tables):
+- **Dedup:** `/batches/create` rejects a duplicate batch name for the same coach (case-insensitive, 409); `/meets/create` rejects a meet the swimmer already has (same name + same date, 409, returns the existing `meet`).
+- **Coach-facing lists:** `GET /goals/assigned/:coachId` (coach-assigned goals across the roster, each with `swimmerName` + live `status` ahead/behind/no_data), `GET /training-routines/assigned/:coachId` (each with `swimmerName`).
+- **Recommendations (coach side):** `GET /meets/recommendations/coach/:coachId` (sent list + `swimmerName`), `POST /meets/recommendation/update` (edit name/date/note — coach-owned), `DELETE /meets/recommendation/:id` (withdraw). `/meets/recommend` now calls `createNotification` per swimmer (`meet_recommendation`) → inbox + push + the Meets-tile badge.
+- **Web (`public/`):** repainted to the **Deep Ocean** palette (accent `#0ea5e9`→`#0AB6BC`, surface→navy `#0A2540`, primary gradient teal→aqua, danger→coral). Clickable Team-Overview stat boxes (drill to swimmer list), Assign view has batch→swimmer narrowing + assigned goals/routines lists, Recommend view shows an editable Sent Recommendations list, invite confirmation is a transient toast. Dedup errors surface via existing `alert(data.error)`.
+
 ## API authentication (enforced as of 2026-05-24)
 
 Every `/api` route now requires a valid Supabase access token. `src/lib/auth.js`

@@ -13,9 +13,24 @@ router.post('/batches/create', async (req, res) => {
     const { name } = req.body;
     if (!isCoach(req)) return forbidden(res);
 
+    const trimmed = (name || '').trim();
+    if (!trimmed) return res.status(400).json({ error: 'Batch name is required' });
+
+    // Reject a duplicate name for this coach (case-insensitive) so a double-tap
+    // on Create can't produce two identically-named batches.
+    const { data: existing } = await supabase
+      .from('coach_batches')
+      .select('id')
+      .eq('coach_id', coachId)
+      .ilike('name', trimmed)
+      .limit(1);
+    if (existing?.length) {
+      return res.status(409).json({ error: `You already have a batch called "${trimmed}".` });
+    }
+
     const { data: batch, error } = await supabase
       .from('coach_batches')
-      .insert({ name, coach_id: coachId })
+      .insert({ name: trimmed, coach_id: coachId })
       .select()
       .single();
 

@@ -2,6 +2,7 @@ const express = require('express');
 const { supabase } = require('../db');
 const { trackEvent } = require('../lib/tracking');
 const { notifyGroupRankChanges } = require('../lib/groupLeaderboard');
+const { createNotification } = require('../lib/notifications');
 const { isSelf, isCoach, coachOwnsSwimmer, canAccessSwimmer, forbidden } = require('../lib/auth');
 
 const router = express.Router();
@@ -40,10 +41,22 @@ router.post('/meets/create', async (req, res) => {
   try {
     const swimmerId = req.user.id;
     const { name, date, location, events } = req.body;
+    const trimmed = (name || '').trim();
+    if (!trimmed) return res.status(400).json({ error: 'Meet name is required' });
+
+    // Don't let the same swimmer add a meet that's already in their list (same
+    // name + same date). Surfaces the existing meet so the client can point to it.
+    let dupQuery = supabase.from('meets').select('id, name, date')
+      .eq('created_by', swimmerId).ilike('name', trimmed);
+    dupQuery = date ? dupQuery.eq('date', date) : dupQuery.is('date', null);
+    const { data: dups } = await dupQuery.limit(1);
+    if (dups?.length) {
+      return res.status(409).json({ error: `"${trimmed}" is already in your meets.`, meet: dups[0] });
+    }
 
     const { data: meet, error } = await supabase
       .from('meets')
-      .insert({ name, date, location: location || null, created_by: swimmerId })
+      .insert({ name: trimmed, date, location: location || null, created_by: swimmerId })
       .select()
       .single();
 
@@ -214,8 +227,74 @@ router.post('/meets/recommend', async (req, res) => {
       .insert(rows)
       .select();
     if (error) return res.status(400).json({ error: error.message });
+
+    // Notify each swimmer (drives the in-app inbox + push + the Meets-tile badge).
+    const { data: coach } = await supabase.from('profiles').select('name').eq('id', coachId).single();
+    const coachName = coach?.name || 'Your coach';
+    await Promise.all((data || []).map(rec => createNotification(
+      rec.swimmer_id,
+      'meet_recommendation',
+      `${coachName} recommended a meet`,
+      meetName + (meetDate ? ` · ${meetDate}` : ''),
+      { recommendationId: rec.id, meetName }
+    )));
+
     await trackEvent(coachId, 'meet_recommended', { swimmerCount: ids.length, meetName });
     res.json({ success: true, recommendations: data });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Coach lists the meets they've recommended, with each swimmer's name + status.
+router.get('/meets/recommendations/coach/:coachId', async (req, res) => {
+  try {
+    const coachId = req.params.coachId;
+    if (!isCoach(req) || req.user.id !== coachId) return forbidden(res);
+    const { data, error } = await supabase
+      .from('meet_recommendations').select('*')
+      .eq('coach_id', coachId)
+      .order('created_at', { ascending: false });
+    if (error) return res.status(400).json({ error: error.message });
+
+    const swimmerIds = [...new Set((data || []).map(r => r.swimmer_id))];
+    let nameMap = {};
+    if (swimmerIds.length) {
+      const { data: swimmers } = await supabase.from('profiles').select('id, name').in('id', swimmerIds);
+      nameMap = Object.fromEntries((swimmers || []).map(s => [s.id, s.name]));
+    }
+    const recommendations = (data || []).map(r => ({ ...r, swimmerName: nameMap[r.swimmer_id] || 'Swimmer' }));
+    res.json({ recommendations });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Coach edits a recommendation they sent (name / date / note).
+router.post('/meets/recommendation/update', async (req, res) => {
+  try {
+    const coachId = req.user.id;
+    const { recommendationId, meetName, meetDate, note } = req.body;
+    if (!recommendationId) return res.status(400).json({ error: 'recommendationId is required' });
+    const { data: rec } = await supabase.from('meet_recommendations').select('coach_id').eq('id', recommendationId).single();
+    if (!rec) return res.status(404).json({ error: 'Recommendation not found' });
+    if (rec.coach_id !== coachId) return forbidden(res);
+    const patch = {};
+    if (meetName !== undefined) patch.meet_name = meetName;
+    if (meetDate !== undefined) patch.meet_date = meetDate || null;
+    if (note !== undefined) patch.note = note || null;
+    const { data, error } = await supabase
+      .from('meet_recommendations').update(patch).eq('id', recommendationId).select().single();
+    if (error) return res.status(400).json({ error: error.message });
+    res.json({ success: true, recommendation: data });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Coach withdraws a recommendation they sent.
+router.delete('/meets/recommendation/:id', async (req, res) => {
+  try {
+    const { data: rec } = await supabase.from('meet_recommendations').select('coach_id').eq('id', req.params.id).single();
+    if (!rec) return res.status(404).json({ error: 'Recommendation not found' });
+    if (rec.coach_id !== req.user.id) return forbidden(res);
+    const { error } = await supabase.from('meet_recommendations').delete().eq('id', req.params.id);
+    if (error) return res.status(400).json({ error: error.message });
+    res.json({ success: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
