@@ -1,6 +1,8 @@
 const express = require('express');
 const { supabase } = require('../db');
 const { isSelf, forbidden } = require('../lib/auth');
+const { createNotification } = require('../lib/notifications');
+const { isConfigured } = require('../lib/apns');
 
 const router = express.Router();
 
@@ -68,6 +70,21 @@ router.post('/notifications/unregister-device', async (req, res) => {
       .eq('user_id', req.user.id);
     if (error) return res.status(400).json({ error: error.message });
     res.json({ success: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Diagnostic: send a test push to the caller's OWN devices, confirming the full
+// APNs pipeline end-to-end. Self-only (uses req.user.id), so it can't spam
+// anyone else. Returns whether the server sees the APNs config + device count.
+router.post('/notifications/test', async (req, res) => {
+  try {
+    const { count } = await supabase
+      .from('device_tokens')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', req.user.id);
+    await createNotification(req.user.id, 'test', 'SwiftLap',
+      'Push notifications are working! 🎉');
+    res.json({ success: true, apnsConfigured: isConfigured(), devices: count || 0 });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
