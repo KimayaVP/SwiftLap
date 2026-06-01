@@ -36,4 +36,39 @@ router.post('/notifications/read', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// Register (or refresh) the caller's device push token. Upserts on token so a
+// device that changes hands re-points to the current user.
+router.post('/notifications/register-device', async (req, res) => {
+  try {
+    const { token, platform } = req.body;
+    if (!token) return res.status(400).json({ error: 'token required' });
+    const { error } = await supabase
+      .from('device_tokens')
+      .upsert({
+        user_id: req.user.id,
+        token,
+        platform: platform || 'ios',
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'token' });
+    if (error) return res.status(400).json({ error: error.message });
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Drop a device token (called on logout so a signed-out phone stops receiving
+// the user's pushes).
+router.post('/notifications/unregister-device', async (req, res) => {
+  try {
+    const { token } = req.body;
+    if (!token) return res.status(400).json({ error: 'token required' });
+    const { error } = await supabase
+      .from('device_tokens')
+      .delete()
+      .eq('token', token)
+      .eq('user_id', req.user.id);
+    if (error) return res.status(400).json({ error: error.message });
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 module.exports = router;
