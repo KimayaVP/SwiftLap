@@ -183,11 +183,13 @@
               <div id="overviewFilter" class="batch-filter"></div>
             </div>
             <div class="summary-grid">
-              <div class="summary-box"><div class="number" id="totalSwimmers">0</div><div class="label">Total</div></div>
-              <div class="summary-box ahead"><div class="number" id="aheadCount">0</div><div class="label">On Track</div></div>
-              <div class="summary-box behind"><div class="number" id="behindCount">0</div><div class="label">Behind</div></div>
-              <div class="summary-box"><div class="number" id="noGoalsCount">0</div><div class="label">No Goals</div></div>
+              <div class="summary-box clickable" onclick="drillOverview('all')"><div class="number" id="totalSwimmers">0</div><div class="label">Total</div></div>
+              <div class="summary-box ahead clickable" onclick="drillOverview('ahead')"><div class="number" id="aheadCount">0</div><div class="label">On Track</div></div>
+              <div class="summary-box behind clickable" onclick="drillOverview('behind')"><div class="number" id="behindCount">0</div><div class="label">Behind</div></div>
+              <div class="summary-box clickable" onclick="drillOverview('no_goals')"><div class="number" id="noGoalsCount">0</div><div class="label">No Goals</div></div>
             </div>
+            <p style="font-size:0.75rem;color:#64748b;text-align:center;">Tap a box to see those swimmers.</p>
+            <div id="overviewDrill" style="display:none;margin-top:14px;"></div>
           </div>
         </div>
 
@@ -229,6 +231,10 @@
             <button class="btn btn-primary" onclick="sendMeetRecommendation()">Send Recommendation</button>
             <div id="recStatus" style="margin-top:10px;"></div>
           </div>
+          <div class="card">
+            <h2>📤 Sent Recommendations</h2>
+            <div id="sentRecsList"><p class="empty-state">Nothing sent yet.</p></div>
+          </div>
         </div>
 
         <!-- SECTION: Assign Goal or Routine -->
@@ -237,6 +243,7 @@
           <div class="card">
             <h2>🎯 Assign</h2>
             <p style="font-size:0.85rem;color:#94a3b8;margin-bottom:12px;">Assign directly to a swimmer — it appears in their app marked with a 👨‍🏫 coach badge.</p>
+            <div class="form-group"><label>Batch (narrows the list)</label><select id="assignBatchSelect" onchange="applyAssignBatch()"><option value="">All swimmers</option></select></div>
             <div class="form-group"><label>Swimmer</label><select id="assignSwimmerSelect"><option value="">Select swimmer...</option></select></div>
             <div class="tabs">
               <button class="tab active" id="assignTabGoal" onclick="showAssignTab('goal')">Goal</button>
@@ -255,6 +262,13 @@
             </div>
             <div id="assignStatus" style="margin-top:10px;"></div>
           </div>
+          <div class="card">
+            <h2>📋 Already Assigned</h2>
+            <h4 style="margin:6px 0 8px;color:#cbd5e1;">Goals</h4>
+            <div id="assignedGoalsList"><p class="empty-state">No goals assigned yet.</p></div>
+            <h4 style="margin:16px 0 8px;color:#cbd5e1;">Routines</h4>
+            <div id="assignedRoutinesList"><p class="empty-state">No routines assigned yet.</p></div>
+          </div>
         </div>
       </div>
 
@@ -264,7 +278,7 @@
           <div id="noCoachBanner" class="no-coach-banner" style="display:none;">
             <h4>🏊 Training Solo</h4>
             <p>You're not linked to a coach yet. Ask your coach to send you an invite from their SwiftLap account.</p>
-            <p style="margin-top:8px;font-size:0.85rem;color:#94a3b8;">Coach not on SwiftLap yet? Ask them to sign up at <a href="https://swiftlap.onrender.com" style="color:#0ea5e9;">swiftlap.onrender.com</a> — then they can invite you.</p>
+            <p style="margin-top:8px;font-size:0.85rem;color:#94a3b8;">Coach not on SwiftLap yet? Ask them to sign up at <a href="https://swiftlap.onrender.com" style="color:#0AB6BC;">swiftlap.onrender.com</a> — then they can invite you.</p>
           </div>
 
           <div id="squadBanner" class="squad-banner" style="display:none;"></div>

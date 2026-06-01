@@ -193,8 +193,16 @@
       const chip = document.getElementById('roleChip');
       chip.textContent = role === 'coach' ? '👨‍🏫 Coach' : '🏊 Swimmer';
       chip.style.display = 'inline-block';
+      showToast(`👋 Welcome, ${name}!`);
+    }
+
+    // Transient top toast (reuses the welcome-toast element/animation).
+    function showToast(msg) {
       const toast = document.getElementById('welcomeToast');
-      document.getElementById('welcomeToastText').textContent = `👋 Welcome, ${name}!`;
+      if (!toast) return;
+      document.getElementById('welcomeToastText').textContent = msg;
+      toast.classList.remove('show');
+      void toast.offsetWidth;   // restart the CSS animation
       toast.classList.add('show');
       setTimeout(() => toast.classList.remove('show'), 3000);
     }
@@ -294,9 +302,10 @@
       if (data.error) status.innerHTML = `<span class="error">${data.error}</span>`;
       else {
         const msg = data.emailed ? data.message : `Invite sent to ${data.swimmer.name}!`;
-        status.innerHTML = `<span class="success">${msg}</span>`;
+        status.innerHTML = '';
         document.getElementById('inviteEmail').value = '';
         loadOutgoingInvites();
+        showToast('✅ ' + msg);   // transient confirmation instead of a static text row
       }
     });
 
@@ -329,7 +338,7 @@
       document.getElementById('longestStreak').textContent = data.streak.longest_streak || 0;
       const ch = data.challenge;
       const pct = Math.min(100, (ch.progress / ch.target) * 100);
-      document.getElementById('weeklyChallenge').innerHTML = `<h4 style="color:#0ea5e9;margin-bottom:8px;">🎯 Weekly Challenge</h4><div style="font-weight:600;">${ch.name}</div><div style="font-size:0.85rem;color:#94a3b8;margin-bottom:10px;">${ch.desc}</div><div style="background:rgba(255,255,255,0.1);border-radius:10px;height:8px;overflow:hidden;"><div style="background:linear-gradient(90deg,#0ea5e9,#22c55e);height:100%;width:${pct}%;"></div></div><div style="display:flex;justify-content:space-between;margin-top:8px;font-size:0.8rem;color:#94a3b8;"><span>${ch.progress}/${ch.target}</span><span>${ch.completed ? '✅ Complete!' : 'In Progress'}</span></div>`;
+      document.getElementById('weeklyChallenge').innerHTML = `<h4 style="color:#0AB6BC;margin-bottom:8px;">🎯 Weekly Challenge</h4><div style="font-weight:600;">${ch.name}</div><div style="font-size:0.85rem;color:#94a3b8;margin-bottom:10px;">${ch.desc}</div><div style="background:rgba(255,255,255,0.1);border-radius:10px;height:8px;overflow:hidden;"><div style="background:linear-gradient(90deg,#0AB6BC,#22c55e);height:100%;width:${pct}%;"></div></div><div style="display:flex;justify-content:space-between;margin-top:8px;font-size:0.8rem;color:#94a3b8;"><span>${ch.progress}/${ch.target}</span><span>${ch.completed ? '✅ Complete!' : 'In Progress'}</span></div>`;
       document.getElementById('badgesGrid').innerHTML = data.all.map(b => `<div class="badge-item ${b.earned ? 'earned' : 'locked'}"><div class="badge-icon">${b.icon}</div><div class="badge-name">${b.name}</div></div>`).join('');
     }
 
@@ -358,6 +367,9 @@
       renderOverviewFilter();
       applyOverviewFilter();
       loadCoachLeaderboard();
+      applyAssignBatch();
+      loadAssignedItems();
+      loadSentRecs();
     }
 
     // ========== TEAM OVERVIEW: multi-select batch filter ==========
@@ -389,10 +401,33 @@
           return inSelectedBatch || isIndividual;
         });
       }
+      overviewSet = set;
       document.getElementById('totalSwimmers').textContent = set.length;
       document.getElementById('aheadCount').textContent = set.filter(s => s.status === 'ahead').length;
       document.getElementById('behindCount').textContent = set.filter(s => s.status === 'behind').length;
       document.getElementById('noGoalsCount').textContent = set.filter(s => s.status === 'no_goals').length;
+      if (overviewDrillCat) drillOverview(overviewDrillCat);   // keep an open drill in sync
+    }
+
+    // Tapping a stat box lists the swimmers in that category below the grid.
+    let overviewSet = [];
+    let overviewDrillCat = null;
+    function drillOverview(cat) {
+      overviewDrillCat = cat;
+      const c = document.getElementById('overviewDrill');
+      if (!c) return;
+      const titles = { all: 'All swimmers', ahead: 'On Track', behind: 'Behind', no_goals: 'No Goals' };
+      const list = cat === 'all' ? overviewSet : overviewSet.filter(s => s.status === cat);
+      const rows = list.length
+        ? list.map(s => `<div class="assigned-row"><div><div class="ar-title">${s.name}</div><div class="ar-sub">Goals ${s.goalsAhead}/${s.goalsCount} · 🔥 ${s.streak}</div></div><button class="btn btn-small btn-primary" onclick="showCommentSection('${s.id}','${jsStr(s.name)}'); showSection('coach-batches');">View</button></div>`).join('')
+        : '<p class="empty-state">No swimmers in this category.</p>';
+      c.innerHTML = `<div class="group-head"><h4>${titles[cat] || cat} <span class="group-count">${list.length}</span></h4><button class="btn btn-secondary btn-small" onclick="closeOverviewDrill()">✕</button></div>${rows}`;
+      c.style.display = 'block';
+    }
+    function closeOverviewDrill() {
+      overviewDrillCat = null;
+      const c = document.getElementById('overviewDrill');
+      if (c) { c.style.display = 'none'; c.innerHTML = ''; }
     }
 
     // ========== ASSIGN: goal / routine tabs ==========
@@ -410,6 +445,8 @@
       if (lb) { const cur = lb.value; lb.innerHTML = '<option value="">All swimmers</option>' + opts; lb.value = cur; }
       const rb = document.getElementById('recBatchSelect');
       if (rb) rb.innerHTML = '<option value="">Choose a batch to tick its swimmers…</option>' + opts;
+      const ab = document.getElementById('assignBatchSelect');
+      if (ab) { const cur = ab.value; ab.innerHTML = '<option value="">All swimmers</option>' + opts + '<option value="__individuals">Individuals</option>'; ab.value = cur; }
     }
 
     function renderGroupedSwimmers() {
@@ -487,7 +524,7 @@
       if (data.totalSessions < 3) { c.innerHTML = '<p class="empty-state">Log 3+ sessions for insights</p>'; return; }
       let html = `<div class="insight-section"><h4>📈 Pace Trend</h4><div class="insight-value ${data.paceTrend.direction === 'improving' ? 'trend-up' : data.paceTrend.direction === 'declining' ? 'trend-down' : ''}">${data.paceTrend.description}</div></div>`;
       html += `<div class="insight-section"><h4>💪 Consistency</h4><div class="insight-value">${data.consistencyScore}%</div><div style="font-size:0.8rem;color:#94a3b8;">${data.consistencyDesc}</div></div>`;
-      if (data.goalInsight) html += `<div class="insight-section" style="background:${data.goalInsight.status === 'achieved' ? 'rgba(34,197,94,0.1)' : 'rgba(14,165,233,0.1)'};"><div class="insight-value" style="color:${data.goalInsight.status === 'achieved' ? '#22c55e' : '#0ea5e9'};">${data.goalInsight.message}</div></div>`;
+      if (data.goalInsight) html += `<div class="insight-section" style="background:${data.goalInsight.status === 'achieved' ? 'rgba(34,197,94,0.1)' : 'rgba(14,165,233,0.1)'};"><div class="insight-value" style="color:${data.goalInsight.status === 'achieved' ? '#22c55e' : '#0AB6BC'};">${data.goalInsight.message}</div></div>`;
       html += `<div class="main-factor"><div class="label">Main Factor</div><div class="text">${data.rankingInsight.mainFactor}</div></div>`;
       c.innerHTML = html;
     }
@@ -891,7 +928,7 @@
       const data = await res.json();
       const container = document.getElementById("swimmerTimesForComment");
       if (!data.times?.length) { container.innerHTML = "<p class=\"empty-state\">No times logged</p>"; return; }
-      container.innerHTML = data.times.map(t => `<div style="background:rgba(255,255,255,0.03);padding:12px;border-radius:8px;margin-bottom:8px;"><div style="display:flex;justify-content:space-between;"><span style="font-weight:600;">${t.stroke} ${t.distance}m</span><span style="color:#0ea5e9;">${formatTime(t.time_seconds)}</span></div><div style="font-size:0.75rem;color:#94a3b8;">${t.date}</div>${t.comments?.length ? t.comments.map(c => `<div style="margin-top:8px;padding:8px;background:rgba(34,197,94,0.1);border-radius:6px;font-size:0.85rem;">${c.reaction || ""} ${c.comment || ""}</div>`).join("") : ""}</div>`).join("");
+      container.innerHTML = data.times.map(t => `<div style="background:rgba(255,255,255,0.03);padding:12px;border-radius:8px;margin-bottom:8px;"><div style="display:flex;justify-content:space-between;"><span style="font-weight:600;">${t.stroke} ${t.distance}m</span><span style="color:#0AB6BC;">${formatTime(t.time_seconds)}</span></div><div style="font-size:0.75rem;color:#94a3b8;">${t.date}</div>${t.comments?.length ? t.comments.map(c => `<div style="margin-top:8px;padding:8px;background:rgba(34,197,94,0.1);border-radius:6px;font-size:0.85rem;">${c.reaction || ""} ${c.comment || ""}</div>`).join("") : ""}</div>`).join("");
     }
     async function addReaction(emoji) {
       if (!currentCommentSwimmerId) return;
@@ -997,7 +1034,7 @@
       if (!meets.length) { container.innerHTML = `<p class="empty-state">No ${meetFilter === "all" ? "" : meetFilter + " "}meets yet</p>`; return; }
       container.innerHTML = meets.map(m => {
         const pill = m.status === "upcoming"
-          ? '<span style="background:#0ea5e9;color:#fff;padding:2px 8px;border-radius:999px;font-size:0.7rem;">Upcoming</span>'
+          ? '<span style="background:#0AB6BC;color:#fff;padding:2px 8px;border-radius:999px;font-size:0.7rem;">Upcoming</span>'
           : '<span style="background:#475569;color:#fff;padding:2px 8px;border-radius:999px;font-size:0.7rem;">Over</span>';
         const sub = m.status === "upcoming"
           ? `${m.date} • ${m.eventCount} event${m.eventCount === 1 ? "" : "s"}`
@@ -1070,7 +1107,7 @@
           return `<div style="background:rgba(255,255,255,0.03);padding:12px;border-radius:10px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;"><div><div style="font-weight:600;">${r.stroke} ${r.distance}m</div><div style="font-size:0.75rem;color:#94a3b8;">${exp}</div></div><button class="btn btn-success btn-small" onclick="logMeetResult('${r.id}')">Log time</button></div>`;
         }
         const expLine = r.expected_seconds != null ? ` (exp ${formatTime(r.expected_seconds)})` : "";
-        return `<div style="background:rgba(255,255,255,0.03);padding:12px;border-radius:10px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;"><div><div style="font-weight:600;">${r.stroke} ${r.distance}m ${medal}</div><div style="font-size:0.75rem;color:#94a3b8;">${r.place ? "Place: " + r.place : ""} ${r.is_pb ? "⭐ PB!" : ""}${expLine}</div></div><div style="font-size:1.2rem;font-weight:700;color:#0ea5e9;">${formatTime(r.time_seconds)}</div></div>`;
+        return `<div style="background:rgba(255,255,255,0.03);padding:12px;border-radius:10px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;"><div><div style="font-weight:600;">${r.stroke} ${r.distance}m ${medal}</div><div style="font-size:0.75rem;color:#94a3b8;">${r.place ? "Place: " + r.place : ""} ${r.is_pb ? "⭐ PB!" : ""}${expLine}</div></div><div style="font-size:1.2rem;font-weight:700;color:#0AB6BC;">${formatTime(r.time_seconds)}</div></div>`;
       }).join("");
     }
     function parseTimeInput(str) {
@@ -1144,11 +1181,46 @@
     }
 
     // ========== COACH: RECOMMEND A MEET ==========
+    let assignAllSwimmers = [];
     async function loadCoachSwimmerSelects() {
       const res = await fetch(`/api/coach/swimmers/${currentUser.id}`);
       const data = await res.json().catch(() => ({}));
+      assignAllSwimmers = data.swimmers || [];
+      applyAssignBatch();
+    }
+
+    // Narrow the Assign swimmer dropdown to the chosen batch (or Individuals).
+    function applyAssignBatch() {
       const sel = document.getElementById("assignSwimmerSelect");
-      if (sel) sel.innerHTML = "<option value=\"\">Select swimmer...</option>" + (data.swimmers || []).map(s => `<option value="${s.id}">${s.name}</option>`).join("");
+      if (!sel) return;
+      const batchId = document.getElementById("assignBatchSelect")?.value || "";
+      let list = assignAllSwimmers;
+      if (batchId === "__individuals") {
+        const inBatch = new Set();
+        coachBatches.forEach(b => b.memberIds.forEach(id => inBatch.add(id)));
+        list = assignAllSwimmers.filter(s => !inBatch.has(s.id));
+      } else if (batchId) {
+        const b = coachBatches.find(x => x.id === batchId);
+        const ids = new Set(b ? b.memberIds : []);
+        list = assignAllSwimmers.filter(s => ids.has(s.id));
+      }
+      const cur = sel.value;
+      sel.innerHTML = "<option value=\"\">Select swimmer...</option>" + list.map(s => `<option value="${s.id}">${s.name}</option>`).join("");
+      if (list.some(s => s.id === cur)) sel.value = cur;
+    }
+
+    // Coach's lists of what they've assigned (goals show live status).
+    async function loadAssignedItems() {
+      const gl = document.getElementById("assignedGoalsList");
+      const rl = document.getElementById("assignedRoutinesList");
+      if (!gl || !rl) return;
+      const gData = await (await fetch(`/api/goals/assigned/${currentUser.id}`)).json().catch(() => ({}));
+      const rData = await (await fetch(`/api/training-routines/assigned/${currentUser.id}`)).json().catch(() => ({}));
+      const goals = gData.goals || [];
+      const routines = rData.routines || [];
+      const statusLabel = { ahead: 'On track', behind: 'Behind', no_data: 'No data' };
+      gl.innerHTML = goals.length ? goals.map(g => `<div class="assigned-row"><div><div class="ar-title">${g.swimmerName}</div><div class="ar-sub">${g.stroke} ${g.distance}m · target ${formatTime(g.target_seconds)}</div></div><span class="status-badge status-${g.status}">${statusLabel[g.status] || g.status}</span></div>`).join("") : '<p class="empty-state">No goals assigned yet.</p>';
+      rl.innerHTML = routines.length ? routines.map(r => `<div class="assigned-row"><div><div class="ar-title">${r.title}</div><div class="ar-sub">${r.swimmerName}${r.details ? ' · ' + r.details : ''}</div></div></div>`).join("") : '<p class="empty-state">No routines assigned yet.</p>';
     }
 
     // Recommend-a-meet: checkbox list of swimmers + batch quick-pick
@@ -1185,6 +1257,7 @@
       status.innerHTML = `<span class="success">Goal assigned!</span>`;
       document.getElementById("assignGoalMin").value = "";
       document.getElementById("assignGoalSec").value = "";
+      loadAssignedItems();
     }
 
     async function assignRoutine() {
@@ -1200,6 +1273,7 @@
       status.innerHTML = `<span class="success">Routine assigned!</span>`;
       document.getElementById("assignRoutineTitle").value = "";
       document.getElementById("assignRoutineDetails").value = "";
+      loadAssignedItems();
     }
 
     // ========== SWIMMER: SQUAD + COACH ROUTINES ==========
@@ -1246,6 +1320,41 @@
       document.getElementById("recNote").value = "";
       document.getElementById("recBatchSelect").value = "";
       document.querySelectorAll(".rec-swimmer").forEach(cb => cb.checked = false);
+      showToast(`✅ Sent to ${swimmerIds.length} swimmer${swimmerIds.length > 1 ? "s" : ""}`);
+      loadSentRecs();
+    }
+
+    // Coach: list of recommendations they've sent — editable / withdrawable.
+    async function loadSentRecs() {
+      const c = document.getElementById("sentRecsList");
+      if (!c) return;
+      const data = await (await fetch(`/api/meets/recommendations/coach/${currentUser.id}`)).json().catch(() => ({}));
+      const recs = data.recommendations || [];
+      if (!recs.length) { c.innerHTML = '<p class="empty-state">Nothing sent yet.</p>'; return; }
+      const label = { accepted: 'Accepted', declined: 'Declined' };
+      c.innerHTML = recs.map(r => {
+        const st = r.status === 'accepted' ? 'ahead' : r.status === 'declined' ? 'behind' : 'pending';
+        return `<div class="assigned-row"><div><div class="ar-title">🏁 ${r.meet_name}</div><div class="ar-sub">To ${r.swimmerName}${r.meet_date ? ' · ' + r.meet_date : ''}</div></div><div style="display:flex;gap:6px;align-items:center;"><span class="status-badge status-${st}">${label[r.status] || 'Pending'}</span><button class="btn btn-small btn-secondary" onclick="editRec('${r.id}','${jsStr(r.meet_name)}','${r.meet_date || ''}','${jsStr(r.note || '')}')">✏️</button><button class="btn btn-small btn-danger" onclick="withdrawRec('${r.id}')">✕</button></div></div>`;
+      }).join("");
+    }
+    async function editRec(id, name, date, note) {
+      const newName = prompt("Meet / Race name", name);
+      if (newName === null) return;
+      const newDate = prompt("Date (YYYY-MM-DD, blank for none)", date || "");
+      if (newDate === null) return;
+      const newNote = prompt("Note (optional)", note || "");
+      if (newNote === null) return;
+      const res = await fetch("/api/meets/recommendation/update", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ recommendationId: id, meetName: newName.trim(), meetDate: newDate.trim() || null, note: newNote.trim() || null }) });
+      const data = await res.json().catch(() => ({}));
+      if (data.error) return alert(data.error);
+      loadSentRecs();
+    }
+    async function withdrawRec(id) {
+      if (!confirm("Withdraw this recommendation?")) return;
+      const res = await fetch(`/api/meets/recommendation/${id}`, { method: "DELETE" });
+      const data = await res.json().catch(() => ({}));
+      if (data.error) return alert(data.error);
+      loadSentRecs();
     }
 
     function logout() {

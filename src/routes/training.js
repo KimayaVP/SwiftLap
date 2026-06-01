@@ -84,6 +84,28 @@ router.post('/training-routines/assign', async (req, res) => {
   } catch (e) { await logError(e, { route: 'routine-assign' }); res.status(500).json({ error: e.message }); }
 });
 
+// Coach lists every routine they've assigned, each tagged with the swimmer name.
+router.get('/training-routines/assigned/:coachId', async (req, res) => {
+  try {
+    const coachId = req.params.coachId;
+    if (!isCoach(req) || req.user.id !== coachId) return forbidden(res);
+    const { data, error } = await supabase
+      .from('coach_routines').select('*')
+      .eq('coach_id', coachId)
+      .order('created_at', { ascending: false });
+    if (error) return res.status(400).json({ error: error.message });
+
+    const swimmerIds = [...new Set((data || []).map(r => r.swimmer_id))];
+    let nameMap = {};
+    if (swimmerIds.length) {
+      const { data: swimmers } = await supabase.from('profiles').select('id, name').in('id', swimmerIds);
+      nameMap = Object.fromEntries((swimmers || []).map(s => [s.id, s.name]));
+    }
+    const routines = (data || []).map(r => ({ ...r, swimmerName: nameMap[r.swimmer_id] || 'Swimmer' }));
+    res.json({ routines });
+  } catch (e) { await logError(e, { route: 'routines-assigned' }); res.status(500).json({ error: e.message }); }
+});
+
 // Swimmer views routines assigned by their coach
 router.get('/training-routines/:swimmerId', async (req, res) => {
   try {
