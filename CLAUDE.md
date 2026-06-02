@@ -111,6 +111,14 @@ UX/feedback pass across **backend + web + iOS** (no DB migration — all new end
 - **Recommendations (coach side):** `GET /meets/recommendations/coach/:coachId` (sent list + `swimmerName`), `POST /meets/recommendation/update` (edit name/date/note — coach-owned), `DELETE /meets/recommendation/:id` (withdraw). `/meets/recommend` now calls `createNotification` per swimmer (`meet_recommendation`) → inbox + push + the Meets-tile badge.
 - **Web (`public/`):** repainted to the **Deep Ocean** palette (accent `#0ea5e9`→`#0AB6BC`, surface→navy `#0A2540`, primary gradient teal→aqua, danger→coral). Clickable Team-Overview stat boxes (drill to swimmer list), Assign view has batch→swimmer narrowing + assigned goals/routines lists, Recommend view shows an editable Sent Recommendations list, invite confirmation is a transient toast. Dedup errors surface via existing `alert(data.error)`.
 
+## Transactional email (2026-06-01)
+
+**Who sends what:**
+- **Supabase Auth** sends the only auth emails: the **coach invite** (`requests.js` → `supabase.auth.admin.inviteUserByEmail`, the one always-on email) and **signup confirmation** (only if "Confirm email" is ON in the Supabase project — it's OFF, since `/auth/signup` auto-logs-in). No password-reset/magic-link flow exists. OAuth sends nothing. The "from" address is whatever the Supabase project's Auth → SMTP is set to (default `noreply@mail.app.supabase.io` until custom SMTP is configured).
+- **App-sent (new) — `src/lib/email.js`:** a **welcome email** on every new account (`/auth/signup` + first-time `/auth/oauth-sync`). Uses **nodemailer over SMTP** (provider-agnostic — Resend/SendGrid/Mailgun/SES). Best-effort + self-gating: `isConfigured()` is false until SMTP env is set, so sign-up never breaks. Branded Deep Ocean HTML.
+
+**Env to go live (set on the Render `SwiftLap` service):** `SMTP_HOST`, `SMTP_PORT` (587 STARTTLS / 465 TLS), `SMTP_USER`, `SMTP_PASS` (secret), `MAIL_FROM` (default `SwiftLap <hello@swiftlap.in>`), `APP_URL` (link target, also the invite `redirectTo`). **Domain `swiftlap.in`** is the chosen sender domain — verify it with the provider (SPF + DKIM + DMARC DNS records) before mail is trusted. To put the **Supabase** invite/confirm emails on the same domain, set the same SMTP in Supabase Dashboard → Authentication → Emails → SMTP Settings.
+
 ## API authentication (enforced as of 2026-05-24)
 
 Every `/api` route now requires a valid Supabase access token. `src/lib/auth.js`
