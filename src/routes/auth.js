@@ -2,6 +2,7 @@ const express = require('express');
 const { supabase, supabaseAuth } = require('../db');
 const { logError, trackEvent } = require('../lib/tracking');
 const { seedDemoData } = require('../lib/seed');
+const { sendWelcomeEmail } = require('../lib/email');
 const { requireCron } = require('../lib/auth');
 
 const router = express.Router();
@@ -23,6 +24,7 @@ router.post('/auth/signup', async (req, res) => {
     await trackEvent(profile.id, 'signup', { role: profile.role });
 
     if (profile.role === 'swimmer') await seedDemoData(profile.id);
+    sendWelcomeEmail(profile.email, profile.name);   // best-effort, non-blocking
 
     res.json({ success: true, user: profile, session: authData.session });
   } catch (e) { await logError(e, { route: 'signup' }); res.status(500).json({ error: e.message }); }
@@ -74,6 +76,7 @@ router.post('/auth/oauth-sync', async (req, res) => {
 
     await trackEvent(profile.id, 'signup', { role: profile.role, provider: authUser.app_metadata?.provider });
     if (profile.role === 'swimmer') await seedDemoData(profile.id);
+    sendWelcomeEmail(profile.email, profile.name);   // best-effort, non-blocking
 
     res.json({ success: true, user: profile });
   } catch (e) { await logError(e, { route: 'oauth-sync' }); res.status(500).json({ error: e.message }); }
