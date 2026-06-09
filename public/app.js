@@ -165,6 +165,7 @@
         document.getElementById('coachSection').style.display = 'block';
         document.getElementById('inviteIcon').style.display = 'block';
         document.getElementById('reviewBell').style.display = 'block';
+        document.getElementById('settingsGear').style.display = 'block';
         showHome();
         loadCoachData();
         loadCoachSwimmerSelects();
@@ -236,8 +237,15 @@
     // ========== SETTINGS MODAL ==========
     function openSettings() {
       document.getElementById('settingsModal').style.display = 'flex';
-      loadSettings();
-      loadWatchStatus();
+      // Leaderboard visibility + Apple Watch are swimmer-only; the Feedback +
+      // About sections are shown to everyone.
+      const isCoach = currentUser && currentUser.role === 'coach';
+      document.getElementById('settingsLeaderboardRow').style.display = isCoach ? 'none' : '';
+      document.getElementById('settingsWatchSection').style.display = isCoach ? 'none' : '';
+      if (!isCoach) {
+        loadSettings();
+        loadWatchStatus();
+      }
     }
     function closeSettings() {
       document.getElementById('settingsModal').style.display = 'none';
