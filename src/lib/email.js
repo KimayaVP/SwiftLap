@@ -11,8 +11,8 @@
 //   APP_URL     e.g. https://swiftlap.in              (link target in the email)
 const nodemailer = require('nodemailer');
 
-const FROM = process.env.MAIL_FROM || 'SwiftLap <hello@swiftlap.in>';
-const APP_URL = process.env.APP_URL || 'https://swiftlap.onrender.com';
+const FROM = process.env.MAIL_FROM || 'SwiftLap <contact@swiftlap.in>';
+const APP_URL = process.env.APP_URL || 'https://swiftlap.in';
 
 let transporter = null;
 let resolved = false;

@@ -136,7 +136,7 @@ router.post('/requests/respond', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-const WEB_URL = process.env.APP_URL || 'https://swiftlap.onrender.com';
+const WEB_URL = process.env.APP_URL || 'https://swiftlap.in';
 
 // Coach invites swimmer by email
 router.post('/requests/invite', async (req, res) => {
