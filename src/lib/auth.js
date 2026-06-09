@@ -7,7 +7,7 @@ const { supabase } = require('../db');
 // - video/cleanup + analytics/summary: server-operator only, guarded by
 //   requireCron (a shared secret) inside their routers
 // - watch/verify-code + watch/workout: the Apple Watch has no user session;
-//   it proves linkage via a 6-digit code + watch_linked_at instead (see watch.js)
+//   it proves linkage via a 4-digit code + watch_linked_at instead (see watch.js)
 const PUBLIC_PATHS = new Set([
   '/health',
   '/config',
@@ -111,7 +111,7 @@ function forbidden(res) {
 }
 
 // MARK: per-device watch tokens
-// The Apple Watch has no user login — it pairs via a 6-digit code. On a
+// The Apple Watch has no user login — it pairs via a 4-digit code. On a
 // successful pair we hand it an HMAC-signed token tying the device to a
 // swimmer; it presents this on every workout sync so we can authenticate the
 // device (and derive the swimmer) without trusting a client-supplied id.

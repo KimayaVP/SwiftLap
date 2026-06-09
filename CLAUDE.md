@@ -142,7 +142,9 @@ else on `supabase`.
   `/auth/signup`, `/auth/oauth-sync`.
 - **Cron/admin** (`requireCron`, header `x-cron-secret` == `CRON_SECRET`):
   `/video/cleanup`, `/analytics/summary`.
-- **Watch device** (no user session): pairs via a 6-digit code, then authenticates
+- **Watch device** (no user session): pairs via a 4-digit code (rate-limited on
+  `/watch/verify-code` — 10 attempts/IP per 10-min window — since a 4-digit code is
+  brute-forceable), then authenticates
   with a per-device **HMAC token**. `/watch/verify-code` returns the token
   (`signWatchToken`); `/watch/workout` requires it (`verifyWatchToken` — header
   `x-watch-token` or body `watchToken`), derives the swimmer from it, and still

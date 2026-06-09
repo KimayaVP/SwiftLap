@@ -5,6 +5,32 @@ const { isSelf, canAccessSwimmer, forbidden, signWatchToken, verifyWatchToken } 
 
 const router = express.Router();
 
+// Brute-force guard for watch-code verification. A 4-digit code is only 9,000
+// possibilities, so without a throttle an attacker could sweep the whole space
+// within the 10-minute expiry window and steal a watch token. Allow a small
+// number of attempts per client IP per window, then reject with 429 until the
+// window rolls over. In-memory is fine here (single Render instance); a
+// successful link clears that IP's counter so re-linking is never penalised.
+const VERIFY_WINDOW_MS = 10 * 60 * 1000;
+const VERIFY_MAX_ATTEMPTS = 10;
+const verifyAttempts = new Map(); // ip -> { count, resetAt }
+
+function clientIp(req) {
+  return (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.ip;
+}
+
+// Returns true once the caller has exceeded the per-window attempt budget.
+function tooManyVerifyAttempts(ip) {
+  const now = Date.now();
+  const rec = verifyAttempts.get(ip);
+  if (!rec || rec.resetAt < now) {
+    verifyAttempts.set(ip, { count: 1, resetAt: now + VERIFY_WINDOW_MS });
+    return false;
+  }
+  rec.count += 1;
+  return rec.count > VERIFY_MAX_ATTEMPTS;
+}
+
 // Receive workout from Apple Watch. PUBLIC: the watch has no user session, so it
 // proves linkage via the watch_linked_at check below rather than a Bearer token.
 router.post('/watch/workout', async (req, res) => {
@@ -19,18 +45,18 @@ router.post('/watch/workout', async (req, res) => {
     // (never trust a client-supplied id).
     const swimmerId = verifyWatchToken(req.headers['x-watch-token'] || req.body.watchToken);
     if (!swimmerId) {
-      return res.status(401).json({ error: 'Watch not authenticated. Open SwiftLap and enter a new 6-digit code to re-link.' });
+      return res.status(401).json({ error: 'Watch not authenticated. Open SwiftLap and enter a new 4-digit code to re-link.' });
     }
 
     // Reject syncs from a watch that has been unlinked from this account.
-    // Re-linking (via a fresh 6-digit code) sets watch_linked_at again.
+    // Re-linking (via a fresh 4-digit code) sets watch_linked_at again.
     const { data: linkProfile } = await supabase
       .from('profiles')
       .select('watch_linked_at')
       .eq('id', swimmerId)
       .single();
     if (!linkProfile?.watch_linked_at) {
-      return res.status(403).json({ error: 'Watch not linked. Open SwiftLap and enter a new 6-digit code to re-link.' });
+      return res.status(403).json({ error: 'Watch not linked. Open SwiftLap and enter a new 4-digit code to re-link.' });
     }
 
     // Auto-clear demo rows on first real workout
@@ -172,8 +198,8 @@ router.post('/watch/generate-code', async (req, res) => {
   try {
     const swimmerId = req.user.id;
 
-    // Generate 6-digit code
-    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    // Generate 4-digit code
+    const code = Math.floor(1000 + Math.random() * 9000).toString();
 
     // Store code with 10-minute expiry
     const { error } = await supabase
@@ -193,6 +219,11 @@ router.post('/watch/generate-code', async (req, res) => {
 // Verify link code from watch
 router.post('/watch/verify-code', async (req, res) => {
   try {
+    const ip = clientIp(req);
+    if (tooManyVerifyAttempts(ip)) {
+      return res.status(429).json({ error: 'Too many attempts. Please wait a few minutes and request a new code.' });
+    }
+
     const { code } = req.body;
 
     const { data, error } = await supabase
@@ -208,6 +239,9 @@ router.post('/watch/verify-code', async (req, res) => {
     if (new Date(data.expires_at) < new Date()) {
       return res.status(400).json({ error: 'Code expired' });
     }
+
+    // Successful link — clear this IP's failed-attempt budget.
+    verifyAttempts.delete(ip);
 
     // Delete used code
     await supabase.from('watch_link_codes').delete().eq('code', code);
