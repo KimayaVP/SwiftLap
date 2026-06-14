@@ -4,7 +4,7 @@ Guidance for Claude Code when working in this repository.
 
 ## Project Overview
 
-**SwiftLapLogic** — a swim performance tracking app for competitive swimmers and coaches. Logs times, tracks goals, analyzes uploaded stroke videos, generates race plans, and provides a coach dashboard.
+**SwiftLap** — a swim performance tracking app for competitive swimmers and coaches. Logs times, tracks goals, analyzes uploaded stroke videos, generates race plans, and provides a coach dashboard. (The repo/npm package and the duplicate Render service are still named "SwiftLapLogic" for legacy reasons; the product/brand name is **SwiftLap**.)
 
 ## Tech Stack
 

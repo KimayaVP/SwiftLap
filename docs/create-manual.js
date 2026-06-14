@@ -23,7 +23,7 @@ const doc = new Document({
     children: [
       // Title
       new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 400 }, children: [
-        new TextRun({ text: "🏊 SwiftLapLogic", size: 56, bold: true, color: "0EA5E9" })
+        new TextRun({ text: "🏊 SwiftLap", size: 56, bold: true, color: "0EA5E9" })
       ]}),
       new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 600 }, children: [
         new TextRun({ text: "User Manual & Guide", size: 32, color: "64748B" })
@@ -32,10 +32,10 @@ const doc = new Document({
         new TextRun({ text: "Version 1.0 - MVP Release", size: 24, italics: true, color: "94A3B8" })
       ]}),
 
-      // What is SwiftLapLogic
-      new Paragraph({ heading: HeadingLevel.HEADING_1, children: [new TextRun("What is SwiftLapLogic?")] }),
+      // What is SwiftLap
+      new Paragraph({ heading: HeadingLevel.HEADING_1, children: [new TextRun("What is SwiftLap?")] }),
       new Paragraph({ spacing: { after: 200 }, children: [
-        new TextRun("SwiftLapLogic is a swim performance tracking and coaching app designed for competitive swimmers and their coaches. Track your times, set goals, get personalized training plans, and compete with friends.")
+        new TextRun("SwiftLap is a swim performance tracking and coaching app designed for competitive swimmers and their coaches. Track your times, set goals, get personalized training plans, and compete with friends.")
       ]}),
 
       // Getting Started
@@ -157,13 +157,13 @@ const doc = new Document({
 
       // Footer
       new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 600 }, children: [
-        new TextRun({ text: "SwiftLapLogic v1.0 - Built with ❤️ for swimmers", size: 20, color: "94A3B8", italics: true })
+        new TextRun({ text: "SwiftLap v1.0 - Built with ❤️ for swimmers", size: 20, color: "94A3B8", italics: true })
       ]}),
     ]
   }]
 });
 
 Packer.toBuffer(doc).then(buffer => {
-  fs.writeFileSync("docs/SwiftLapLogic-User-Manual.docx", buffer);
-  console.log("✅ Manual created: docs/SwiftLapLogic-User-Manual.docx");
+  fs.writeFileSync("docs/SwiftLap-User-Manual.docx", buffer);
+  console.log("✅ Manual created: docs/SwiftLap-User-Manual.docx");
 });

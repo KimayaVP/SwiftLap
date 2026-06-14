@@ -39,4 +39,4 @@ app.use('/api', require('./routes/meets'));
 app.use('/api', require('./routes/notifications'));
 app.use('/api', require('./routes/watch'));
 
-app.listen(PORT, () => console.log(`\n🏊 SwiftLapLogic at http://localhost:${PORT}\n`));
+app.listen(PORT, () => console.log(`\n🏊 SwiftLap at http://localhost:${PORT}\n`));

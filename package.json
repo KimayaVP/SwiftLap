@@ -1,5 +1,5 @@
 {
-  "name": "swiftlaplogic",
+  "name": "swiftlap",
   "version": "1.0.0",
   "description": "Swim performance tracking and coaching app",
   "main": "src/index.js",
