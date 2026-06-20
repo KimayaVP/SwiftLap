@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>SwiftLap — Analytics</title>
+  <style>
+    :root {
+      --navy: #0A2540; --navy-2: #0d2c4d; --surface: #103254;
+      --teal: #0AB6BC; --aqua: #2fd4d9; --ink: #e8f3f5; --muted: #8fb0bf;
+      --coral: #ff6b6b; --line: rgba(255,255,255,0.08);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; background: var(--navy); color: var(--ink);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      -webkit-font-smoothing: antialiased; padding: 24px;
+    }
+    h1 { font-size: 1.4rem; margin: 0; }
+    h2 { font-size: 1rem; margin: 0 0 12px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
+    a { color: var(--teal); }
+    .wrap { max-width: 980px; margin: 0 auto; }
+    .topbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 8px; flex-wrap: wrap; }
+    .sub { color: var(--muted); font-size: 0.85rem; margin: 0 0 24px; }
+    .controls { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    select, button, input {
+      font: inherit; color: var(--ink); background: var(--surface);
+      border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px;
+    }
+    button { cursor: pointer; background: linear-gradient(135deg, var(--teal), var(--aqua)); color: #042024; border: none; font-weight: 600; }
+    button.ghost { background: var(--surface); color: var(--ink); font-weight: 500; }
+    .card { background: var(--navy-2); border: 1px solid var(--line); border-radius: 14px; padding: 18px 20px; margin-bottom: 18px; }
+    .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; }
+    .kpi { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 16px; }
+    .kpi .n { font-size: 1.7rem; font-weight: 700; }
+    .kpi .l { color: var(--muted); font-size: 0.8rem; margin-top: 4px; }
+    .chart { display: flex; align-items: flex-end; gap: 3px; height: 160px; padding-top: 8px; }
+    .bar { flex: 1; background: linear-gradient(180deg, var(--aqua), var(--teal)); border-radius: 3px 3px 0 0; min-height: 2px; position: relative; }
+    .bar:hover::after {
+      content: attr(data-label); position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%);
+      background: #000; color: #fff; font-size: 0.7rem; padding: 3px 6px; border-radius: 5px; white-space: nowrap; margin-bottom: 4px;
+    }
+    .axis { display: flex; justify-content: space-between; color: var(--muted); font-size: 0.7rem; margin-top: 6px; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); }
+    th { color: var(--muted); font-weight: 600; }
+    td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+    .tag { display: inline-block; background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 2px 8px; font-size: 0.78rem; }
+    .err { color: var(--coral); }
+    .gate { max-width: 420px; margin: 12vh auto 0; text-align: center; }
+    .gate input { width: 100%; margin: 14px 0; text-align: center; }
+    .hidden { display: none; }
+    .muted { color: var(--muted); }
+    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+    @media (max-width: 720px) { .grid2 { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <!-- Gate: prompt for the operator secret (CRON_SECRET). Kept only in this tab. -->
+  <div id="gate" class="gate">
+    <h1>SwiftLap Analytics</h1>
+    <p class="muted">Server-operator access. Enter the operator secret.</p>
+    <input id="secret" type="password" placeholder="Operator secret" autocomplete="off" />
+    <button id="enter">View dashboard</button>
+    <p id="gateErr" class="err"></p>
+  </div>
+
+  <!-- Dashboard -->
+  <div id="dash" class="wrap hidden">
+    <div class="topbar">
+      <div>
+        <h1>SwiftLap Analytics</h1>
+        <p class="sub" id="meta">—</p>
+      </div>
+      <div class="controls">
+        <select id="window">
+          <option value="7">Last 7 days</option>
+          <option value="30" selected>Last 30 days</option>
+          <option value="90">Last 90 days</option>
+        </select>
+        <button id="refresh" class="ghost">Refresh</button>
+        <button id="logout" class="ghost">Lock</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="kpis" id="kpis"></div>
+    </div>
+
+    <div class="card">
+      <h2>Daily activity</h2>
+      <div class="chart" id="chart"></div>
+      <div class="axis"><span id="axisStart"></span><span id="axisEnd"></span></div>
+    </div>
+
+    <div class="grid2">
+      <div class="card">
+        <h2>Events by type</h2>
+        <table><tbody id="byType"></tbody></table>
+      </div>
+      <div class="card">
+        <h2>Recent errors</h2>
+        <div id="errors"><p class="muted">None 🎉</p></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Recent events</h2>
+      <table>
+        <thead><tr><th>Event</th><th>User</th><th class="num">When</th></tr></thead>
+        <tbody id="feed"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+    const SECRET_KEY = 'swiftlap_admin_secret';
+    const $ = (id) => document.getElementById(id);
+    const fmtTime = (iso) => new Date(iso).toLocaleString();
+    const shortUser = (u) => u ? u.slice(0, 8) : '—';
+
+    async function fetchSummary(days) {
+      const secret = sessionStorage.getItem(SECRET_KEY) || '';
+      const res = await fetch(`/api/analytics/summary?days=${days}`, {
+        headers: { 'x-cron-secret': secret },
+      });
+      if (res.status === 401) throw new Error('Unauthorized — wrong secret.');
+      if (!res.ok) throw new Error(`Request failed (${res.status}).`);
+      return res.json();
+    }
+
+    function render(d) {
+      $('meta').textContent =
+        `Window: last ${d.windowDays} days · generated ${fmtTime(d.generatedAt)}`;
+
+      const kpis = [
+        ['totalEvents', 'Total events'],
+        ['uniqueUsers', 'Unique users'],
+        ['activeUsers7d', 'Active (7d)'],
+        ['activeUsers30d', 'Active (30d)'],
+        ['newSignups', 'New signups'],
+        ['logins', 'Logins'],
+        ['timesLogged', 'Times logged'],
+        ['errors', 'Errors'],
+      ];
+      $('kpis').innerHTML = kpis.map(([k, label]) => `
+        <div class="kpi">
+          <div class="n${k === 'errors' && d[k] ? ' err' : ''}">${(d[k] ?? 0).toLocaleString()}</div>
+          <div class="l">${label}</div>
+        </div>`).join('');
+
+      const max = Math.max(1, ...d.perDay.map(p => p.count));
+      $('chart').innerHTML = d.perDay.map(p => `
+        <div class="bar" style="height:${(p.count / max) * 100}%"
+             data-label="${p.date}: ${p.count}"></div>`).join('');
+      if (d.perDay.length) {
+        $('axisStart').textContent = d.perDay[0].date;
+        $('axisEnd').textContent = d.perDay[d.perDay.length - 1].date;
+      }
+
+      const types = Object.entries(d.byType).sort((a, b) => b[1] - a[1]);
+      $('byType').innerHTML = types.length
+        ? types.map(([t, n]) => `<tr><td><span class="tag">${t}</span></td><td class="num">${n.toLocaleString()}</td></tr>`).join('')
+        : '<tr><td class="muted">No events in window</td></tr>';
+
+      $('errors').innerHTML = d.recentErrors.length
+        ? d.recentErrors.map(e => `
+            <div style="padding:8px 0;border-bottom:1px solid var(--line);">
+              <div class="err">${escapeHtml(e.message)}</div>
+              <div class="muted" style="font-size:0.78rem;">${fmtTime(e.at)}</div>
+            </div>`).join('')
+        : '<p class="muted">None 🎉</p>';
+
+      $('feed').innerHTML = d.recentEvents.length
+        ? d.recentEvents.map(e => `
+            <tr><td><span class="tag">${e.event_type}</span></td>
+                <td class="muted">${shortUser(e.user_id)}</td>
+                <td class="num muted">${fmtTime(e.at)}</td></tr>`).join('')
+        : '<tr><td class="muted">No recent events</td></tr>';
+    }
+
+    function escapeHtml(s) {
+      return String(s).replace(/[&<>"']/g, c =>
+        ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    }
+
+    async function load() {
+      try {
+        const d = await fetchSummary($('window').value);
+        render(d);
+      } catch (e) {
+        if (/Unauthorized/i.test(e.message)) return lock(e.message);
+        alert(e.message);
+      }
+    }
+
+    function unlock() {
+      $('gate').classList.add('hidden');
+      $('dash').classList.remove('hidden');
+      load();
+    }
+    function lock(msg) {
+      sessionStorage.removeItem(SECRET_KEY);
+      $('dash').classList.add('hidden');
+      $('gate').classList.remove('hidden');
+      $('gateErr').textContent = msg || '';
+    }
+
+    $('enter').addEventListener('click', () => {
+      const v = $('secret').value.trim();
+      if (!v) return;
+      sessionStorage.setItem(SECRET_KEY, v);
+      $('secret').value = '';
+      unlock();
+    });
+    $('secret').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('enter').click(); });
+    $('refresh').addEventListener('click', load);
+    $('window').addEventListener('change', load);
+    $('logout').addEventListener('click', () => lock());
+
+    // Resume if the secret is still in this tab's sessionStorage.
+    if (sessionStorage.getItem(SECRET_KEY)) unlock();
+  </script>
+</body>
+</html>

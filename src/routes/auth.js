@@ -169,13 +169,78 @@ router.post('/analytics/track', async (req, res) => {
   res.json({ success: true });
 });
 
-// Aggregate analytics across all users — server-operator only.
+// Aggregate analytics across all users — server-operator only (requireCron).
+// Powers the operator dashboard at /admin.html. `?days=N` sets the window
+// (default 30, capped at 90). Aggregation is done in JS over a bounded recent
+// slice, which is fine at the app's current scale; revisit with SQL rollups if
+// the event volume outgrows the cap.
 router.get('/analytics/summary', requireCron, async (req, res) => {
   try {
-    const { data: events } = await supabase.from('analytics').select('*').order('created_at', { ascending: false }).limit(100);
-    const summary = { totalEvents: events?.length || 0, byType: {}, recentErrors: [] };
-    (events || []).forEach(e => { summary.byType[e.event_type] = (summary.byType[e.event_type] || 0) + 1; });
-    res.json(summary);
+    const days = Math.min(Math.max(parseInt(req.query.days, 10) || 30, 1), 90);
+    const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+    const sinceISO = since.toISOString();
+
+    const { data: events } = await supabase
+      .from('analytics')
+      .select('user_id, event_type, event_data, created_at')
+      .gte('created_at', sinceISO)
+      .order('created_at', { ascending: false })
+      .limit(20000);
+
+    const rows = events || [];
+    const dayKey = (d) => new Date(d).toISOString().slice(0, 10);          // YYYY-MM-DD (UTC)
+    const cutoff = (n) => Date.now() - n * 24 * 60 * 60 * 1000;
+
+    const byType = {};
+    const users = new Set();
+    const active7 = new Set();
+    const active30 = new Set();
+    const perDayMap = {};
+    const recentErrors = [];
+
+    for (const e of rows) {
+      byType[e.event_type] = (byType[e.event_type] || 0) + 1;
+      const t = new Date(e.created_at).getTime();
+      if (e.user_id) {
+        users.add(e.user_id);
+        if (t >= cutoff(7)) active7.add(e.user_id);
+        if (t >= cutoff(30)) active30.add(e.user_id);
+      }
+      perDayMap[dayKey(e.created_at)] = (perDayMap[dayKey(e.created_at)] || 0) + 1;
+      if (e.event_type === 'error' && recentErrors.length < 15) {
+        recentErrors.push({
+          message: e.event_data?.message || 'Unknown error',
+          context: e.event_data?.context || null,
+          at: e.created_at,
+        });
+      }
+    }
+
+    // Dense per-day series for the whole window (zero-filled), oldest → newest.
+    const perDay = [];
+    for (let i = days - 1; i >= 0; i--) {
+      const key = dayKey(cutoff(i));
+      perDay.push({ date: key, count: perDayMap[key] || 0 });
+    }
+
+    res.json({
+      windowDays: days,
+      generatedAt: new Date().toISOString(),
+      totalEvents: rows.length,
+      uniqueUsers: users.size,
+      activeUsers7d: active7.size,
+      activeUsers30d: active30.size,
+      newSignups: byType['signup'] || 0,
+      logins: byType['login'] || 0,
+      timesLogged: byType['time_logged'] || 0,
+      errors: byType['error'] || 0,
+      byType,
+      perDay,
+      recentEvents: rows.slice(0, 25).map(e => ({
+        event_type: e.event_type, user_id: e.user_id, at: e.created_at,
+      })),
+      recentErrors,
+    });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
