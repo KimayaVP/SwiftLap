@@ -209,7 +209,8 @@
 
     $('enter').addEventListener('click', () => {
       const v = $('secret').value.trim();
-      if (!v) return;
+      if (!v) { $('gateErr').textContent = 'Enter the operator secret first.'; return; }
+      $('gateErr').textContent = 'Checking…';
       sessionStorage.setItem(SECRET_KEY, v);
       $('secret').value = '';
       unlock();
