@@ -1,7 +1,6 @@
 const express = require('express');
 const { supabase, supabaseAuth } = require('../db');
 const { logError, trackEvent } = require('../lib/tracking');
-const { seedDemoData } = require('../lib/seed');
 const { sendWelcomeEmail } = require('../lib/email');
 const { requireCron } = require('../lib/auth');
 
@@ -23,7 +22,7 @@ router.post('/auth/signup', async (req, res) => {
     if (error) return res.status(400).json({ error: error.message });
     await trackEvent(profile.id, 'signup', { role: profile.role });
 
-    if (profile.role === 'swimmer') await seedDemoData(profile.id);
+    // New swimmers start with a clean slate — no demo goal/time/workout.
     sendWelcomeEmail(profile.email, profile.name);   // best-effort, non-blocking
 
     res.json({ success: true, user: profile, session: authData.session });
@@ -75,7 +74,7 @@ router.post('/auth/oauth-sync', async (req, res) => {
     if (error) return res.status(400).json({ error: error.message });
 
     await trackEvent(profile.id, 'signup', { role: profile.role, provider: authUser.app_metadata?.provider });
-    if (profile.role === 'swimmer') await seedDemoData(profile.id);
+    // New swimmers start with a clean slate — no demo goal/time/workout.
     sendWelcomeEmail(profile.email, profile.name);   // best-effort, non-blocking
 
     res.json({ success: true, user: profile });

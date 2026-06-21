@@ -61,8 +61,18 @@ SwiftLap/
 
 `DELETE /api/times/:id` and `DELETE /api/goals/:id` (in `times.js`/`goals.js`) let
 a swimmer remove their own logged time / goal (accidental-tap recovery). Both are
-scoped to `swimmer_id = req.user.id`. Backs the new delete buttons on Android
-Recents/Goals; **iOS + web still need the matching UI** (see the parity note).
+scoped to `swimmer_id = req.user.id`. Delete UI is now shipped on **all three
+clients** (web 🗑 button, iOS swipe-to-delete, Android trash icon — each with a
+confirm).
+
+## No demo seeding on signup (2026-06-21)
+
+New swimmers used to get a seeded demo goal/time/workout (`src/lib/seed.js`
+`seedDemoData`, called from `auth.js` signup + oauth-sync) so the dashboard wasn't
+empty — but it made fresh accounts look pre-filled like the demo. **Removed both
+calls and deleted `src/lib/seed.js`**; new accounts start empty. The watch route
+still deletes any leftover `source='demo'` rows on the first real workout (harmless
+safety net for older seeded accounts).
 
 ## Canonical host (swiftlap.in)
 

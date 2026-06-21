@@ -165,7 +165,9 @@
         document.getElementById('coachSection').style.display = 'block';
         document.getElementById('inviteIcon').style.display = 'block';
         document.getElementById('reviewBell').style.display = 'block';
-        document.getElementById('settingsGear').style.display = 'block';
+        document.getElementById('contactIcon').style.display = 'block';
+        // Coach Settings only held swimmer-only rows (leaderboard/watch) + the now
+        // moved-out Contact/Feedback, so there's nothing left — hide the gear.
         showHome();
         loadCoachData();
         loadCoachSwimmerSelects();
@@ -173,6 +175,9 @@
       } else {
         document.getElementById('swimmerSection').style.display = 'block';
         document.getElementById('settingsGear').style.display = 'block';
+        document.getElementById('contactIcon').style.display = 'block';
+        syncDistanceOptions('timeStroke', 'timeDistance');
+        syncDistanceOptions('goalStroke', 'goalDistance');
         showHome();
         if (!currentUser.coach_id) {
           document.getElementById('noCoachBanner').style.display = 'block';
@@ -237,8 +242,7 @@
     // ========== SETTINGS MODAL ==========
     function openSettings() {
       document.getElementById('settingsModal').style.display = 'flex';
-      // Leaderboard visibility + Apple Watch are swimmer-only; the Feedback +
-      // About sections are shown to everyone.
+      // Settings is swimmer-only now (leaderboard visibility + Apple Watch).
       const isCoach = currentUser && currentUser.role === 'coach';
       document.getElementById('settingsLeaderboardRow').style.display = isCoach ? 'none' : '';
       document.getElementById('settingsWatchSection').style.display = isCoach ? 'none' : '';
@@ -249,6 +253,12 @@
     }
     function closeSettings() {
       document.getElementById('settingsModal').style.display = 'none';
+    }
+    function openContact() {
+      document.getElementById('contactModal').style.display = 'flex';
+    }
+    function closeContact() {
+      document.getElementById('contactModal').style.display = 'none';
     }
     function openIntensityInfo() {
       document.getElementById('intensityModal').style.display = 'flex';
@@ -537,6 +547,39 @@
       c.innerHTML = html;
     }
 
+    // Distance choices per stroke: 25/50/100/200 for every stroke; Freestyle also
+    // offers 400/800/1500. Mirrors iOS + Android distancesFor(). Used by the Goals
+    // + Recent-Times pickers.
+    function distancesFor(stroke) {
+      const base = [25, 50, 100, 200];
+      return stroke === 'Freestyle' ? base.concat([400, 800, 1500]) : base;
+    }
+    function syncDistanceOptions(strokeId, distId) {
+      const strokeEl = document.getElementById(strokeId);
+      const sel = document.getElementById(distId);
+      if (!strokeEl || !sel) return;
+      const cur = sel.value;
+      const opts = distancesFor(strokeEl.value);
+      sel.innerHTML = opts.map(d => `<option value="${d}">${d}m</option>`).join('');
+      if (opts.map(String).includes(cur)) sel.value = cur;
+    }
+
+    async function deleteTime(id) {
+      if (!confirm('Delete this time? You can log it again anytime.')) return;
+      const res = await fetch(`/api/times/${id}`, { method: 'DELETE' });
+      const data = await res.json().catch(() => ({}));
+      if (data.error) { alert(data.error); return; }
+      loadTimes(); loadGoals(); loadInsights(); loadAchievements();
+    }
+
+    async function deleteGoal(id) {
+      if (!confirm('Delete this goal? You can set it again anytime.')) return;
+      const res = await fetch(`/api/goals/${id}`, { method: 'DELETE' });
+      const data = await res.json().catch(() => ({}));
+      if (data.error) { alert(data.error); return; }
+      loadGoals();
+    }
+
     async function loadGoals() {
       const res = await fetch(`/api/goals/all/${currentUser.id}`);
       const data = await res.json();
@@ -546,7 +589,7 @@
           : (g.bestTime !== null ? `<span class="goal-status pending">${g.gap}s to go</span>` : '<span class="goal-status pending">No times yet</span>');
         const bestHtml = g.bestTime !== null ? `<div style="font-size:0.8rem;color:#94a3b8;">Best: ${formatTime(g.bestTime)}</div>` : '';
         const coachBadge = g.source === 'coach' ? '<span class="coach-badge" title="Assigned by your coach">👨‍🏫 Coach</span>' : '';
-        return `<div onclick="setActiveGoal('${g.id}')" style="background:${g.isActive ? 'rgba(34,197,94,0.15)' : 'rgba(255,255,255,0.03)'};padding:14px;border-radius:10px;margin-bottom:10px;cursor:pointer;border:${g.isActive ? '2px solid #22c55e' : '1px solid transparent'};"><div style="display:flex;justify-content:space-between;margin-bottom:8px;"><h4>${g.stroke} ${g.distance}m${coachBadge}</h4>${g.isActive ? '<span style="color:#22c55e;font-size:0.8rem;">✓ Active</span>' : ''}</div><div style="display:flex;justify-content:space-between;align-items:center;"><div><div style="font-size:0.85rem;color:#94a3b8;">Target: ${formatTime(g.target_seconds)}</div>${bestHtml}</div>${statusHtml}</div></div>`;
+        return `<div onclick="setActiveGoal('${g.id}')" style="background:${g.isActive ? 'rgba(34,197,94,0.15)' : 'rgba(255,255,255,0.03)'};padding:14px;border-radius:10px;margin-bottom:10px;cursor:pointer;border:${g.isActive ? '2px solid #22c55e' : '1px solid transparent'};"><div style="display:flex;justify-content:space-between;margin-bottom:8px;"><h4>${g.stroke} ${g.distance}m${coachBadge}</h4><div style="display:flex;align-items:center;gap:10px;">${g.isActive ? '<span style="color:#22c55e;font-size:0.8rem;">✓ Active</span>' : ''}<button title="Delete" onclick="event.stopPropagation(); deleteGoal('${g.id}')" style="background:none;border:none;cursor:pointer;font-size:1rem;opacity:0.55;padding:2px;">🗑️</button></div></div><div style="display:flex;justify-content:space-between;align-items:center;"><div><div style="font-size:0.85rem;color:#94a3b8;">Target: ${formatTime(g.target_seconds)}</div>${bestHtml}</div>${statusHtml}</div></div>`;
       }).join('');
     }
 
@@ -607,7 +650,7 @@
       container.innerHTML = list.map(t => {
         const icon = SOURCE_ICONS[t.source] || '✍️';
         const label = t.source === 'apple_watch' ? 'Apple Watch' : t.source === 'race' ? 'Race' : 'Manual';
-        return `<div class="time-entry"><div><div class="stroke">${t.stroke}<span class="source-icon" title="${label}">${icon}</span></div><div class="details">${t.distance}m • ${dateOf(t)}</div></div><div class="time">${formatTime(t.time_seconds)}</div></div>`;
+        return `<div class="time-entry"><div><div class="stroke">${t.stroke}<span class="source-icon" title="${label}">${icon}</span></div><div class="details">${t.distance}m • ${dateOf(t)}</div></div><div style="display:flex;align-items:center;gap:12px;"><div class="time">${formatTime(t.time_seconds)}</div><button title="Delete" onclick="deleteTime('${t.id}')" style="background:none;border:none;cursor:pointer;font-size:1rem;opacity:0.55;padding:2px;">🗑️</button></div></div>`;
       }).join('');
     }
 
@@ -1376,6 +1419,7 @@
       document.getElementById('roleChip').style.display = 'none';
       document.getElementById('inviteIcon').style.display = 'none';
       document.getElementById('settingsGear').style.display = 'none';
+      document.getElementById('contactIcon').style.display = 'none';
       document.getElementById('reviewBell').style.display = 'none';
       document.getElementById('notifBell').style.display = 'none';
     }
