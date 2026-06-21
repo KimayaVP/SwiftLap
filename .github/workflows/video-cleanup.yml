@@ -14,4 +14,4 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Trigger video cleanup
-        run: curl -fsS -X POST -H "x-cron-secret: ${{ secrets.CRON_SECRET }}" https://swiftlap.onrender.com/api/video/cleanup
+        run: curl -fsS -X POST -H "x-cron-secret: ${{ secrets.CRON_SECRET }}" https://swiftlap.in/api/video/cleanup

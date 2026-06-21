@@ -14,4 +14,4 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Ping /healthz
-        run: curl -fsS https://swiftlap.onrender.com/healthz
+        run: curl -fsS https://swiftlap.in/healthz

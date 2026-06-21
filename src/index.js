@@ -5,6 +5,24 @@ const path = require('path');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Canonical host. swiftlap.in is the official home; Render's default
+// *.onrender.com subdomain can't be removed, so instead we permanently (301)
+// bounce any browser that opens it over to https://swiftlap.in (same path) —
+// this is what redirects people who were given the old Render link.
+// Deliberately skipped: /api (so any app client still pinned to the Render URL
+// keeps working — a 301 can rewrite a POST to a GET) and /healthz (the
+// keepalive ping must wake *this* dyno). GET/HEAD only, for the same reason.
+app.use((req, res, next) => {
+  const host = (req.headers.host || '').toLowerCase();
+  const isRender = host.endsWith('.onrender.com');
+  const isApiOrHealth = req.path.startsWith('/api') || req.path === '/healthz';
+  const isReadNav = req.method === 'GET' || req.method === 'HEAD';
+  if (isRender && isReadNav && !isApiOrHealth) {
+    return res.redirect(301, 'https://swiftlap.in' + req.originalUrl);
+  }
+  next();
+});
+
 app.use(express.static(path.join(__dirname, '../public')));
 app.use(express.json());
 

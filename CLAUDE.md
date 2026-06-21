@@ -57,6 +57,19 @@ SwiftLap/
 └── .env                      # Supabase credentials, PORT (gitignored)
 ```
 
+## Canonical host (swiftlap.in)
+
+`src/index.js` has a top-of-stack middleware that 301-redirects any browser
+request whose `Host` ends in `.onrender.com` to `https://swiftlap.in` (same
+path) — this is how people given the old Render link get bounced to the domain.
+Render's default `*.onrender.com` subdomain can't be deleted, so the redirect is
+the way to "turn it off." **Skipped on purpose:** `/api` (a 301 can rewrite a
+POST→GET, and breaks any client still pinned to the Render URL) and `/healthz`
+(the keepalive ping must wake *this* dyno); GET/HEAD only. All clients (web, iOS
+`Shared/AppConfig.swift`, Android `core/AppConfig.kt`) already use swiftlap.in,
+and both GitHub workflows (`keepalive.yml`, `video-cleanup.yml`) now point at
+swiftlap.in too, so nothing depends on the onrender hostname anymore.
+
 ## Database migrations
 
 SQL in `db/migrations/` is **not auto-applied** — paste each file into the Supabase SQL editor to run it. Files are named `YYYY-MM-DD-description.sql`.
