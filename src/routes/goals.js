@@ -29,6 +29,19 @@ router.post('/goals', async (req, res) => {
   } catch (e) { await logError(e, { route: 'goals-post' }); res.status(500).json({ error: e.message }); }
 });
 
+// Delete one of the caller's own goals (e.g. an accidental tap). Scoped to
+// swimmer_id = req.user.id. Different HTTP method from GET /goals/:swimmerId, so
+// it doesn't collide with that wildcard.
+router.delete('/goals/:id', async (req, res) => {
+  try {
+    const swimmerId = req.user.id;
+    const { error } = await supabase.from('goals').delete().eq('id', req.params.id).eq('swimmer_id', swimmerId);
+    if (error) return res.status(400).json({ error: error.message });
+    await trackEvent(swimmerId, 'goal_deleted', { id: req.params.id });
+    res.json({ success: true });
+  } catch (e) { await logError(e, { route: 'goals-delete' }); res.status(500).json({ error: e.message }); }
+});
+
 // Coach assigns a goal to one of their swimmers (tagged source='coach')
 router.post('/goals/assign', async (req, res) => {
   try {

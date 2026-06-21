@@ -39,4 +39,16 @@ router.get('/times/:swimmerId', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// Delete one of the caller's own logged times (e.g. an accidental entry). Scoped
+// to swimmer_id = req.user.id so a swimmer can only delete their own rows.
+router.delete('/times/:id', async (req, res) => {
+  try {
+    const swimmerId = req.user.id;
+    const { error } = await supabase.from('swim_times').delete().eq('id', req.params.id).eq('swimmer_id', swimmerId);
+    if (error) return res.status(400).json({ error: error.message });
+    await trackEvent(swimmerId, 'time_deleted', { id: req.params.id });
+    res.json({ success: true });
+  } catch (e) { await logError(e, { route: 'times-delete' }); res.status(500).json({ error: e.message }); }
+});
+
 module.exports = router;
