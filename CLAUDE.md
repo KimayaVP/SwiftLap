@@ -57,6 +57,13 @@ SwiftLap/
 └── .env                      # Supabase credentials, PORT (gitignored)
 ```
 
+## Delete endpoints (2026-06-21)
+
+`DELETE /api/times/:id` and `DELETE /api/goals/:id` (in `times.js`/`goals.js`) let
+a swimmer remove their own logged time / goal (accidental-tap recovery). Both are
+scoped to `swimmer_id = req.user.id`. Backs the new delete buttons on Android
+Recents/Goals; **iOS + web still need the matching UI** (see the parity note).
+
 ## Canonical host (swiftlap.in)
 
 `src/index.js` has a top-of-stack middleware that 301-redirects any browser
