@@ -166,8 +166,7 @@
         document.getElementById('inviteIcon').style.display = 'block';
         document.getElementById('reviewBell').style.display = 'block';
         document.getElementById('contactIcon').style.display = 'block';
-        // Coach Settings only held swimmer-only rows (leaderboard/watch) + the now
-        // moved-out Contact/Feedback, so there's nothing left — hide the gear.
+        document.getElementById('settingsGear').style.display = 'block';
         showHome();
         loadCoachData();
         loadCoachSwimmerSelects();
